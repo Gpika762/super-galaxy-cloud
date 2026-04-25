@@ -3,10 +3,23 @@ const multer = require('multer');
 const { google } = require('googleapis');
 const stream = require('stream');
 const path = require('path');
-const cors = require('cors');
+const cors = require('cors'); // El héroe de la película
 const app = express();
 
-app.use(cors());
+// --- SOLUCIÓN MAESTRA AL ERROR CORS ---
+app.use(cors({
+    origin: '*', // Permite que cualquier Galaxy (S2, S3, S4) se conecte
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
+// Refuerzo de cabeceras para navegadores vintage
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
 
 // --- CONFIGURACIÓN EINSTEIN ---
 const CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
@@ -18,10 +31,9 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 
-// Usamos memoria RAM para que el S4 no tenga que esperar al disco duro de Render
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 100 * 1024 * 1024 } // Límite de 100MB por archivo
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB para tus APKs y ROMs
 });
 
 app.use(express.static(__dirname));
@@ -54,7 +66,7 @@ app.post('/api/upload', upload.single('archivo'), async (req, res) => {
     }
 });
 
-// API: LISTADO COMPATIBLE CON NAVEGADORES VINTAGE
+// API: LISTADO COMPATIBLE
 app.get('/api/files', async (req, res) => {
     try {
         const response = await drive.files.list({
@@ -66,7 +78,7 @@ app.get('/api/files', async (req, res) => {
         const fileList = response.data.files.map(file => ({
             name: file.name,
             size: file.size ? (file.size / (1024 * 1024)).toFixed(2) + " MB" : "---",
-            url: file.webContentLink // Este link es el mejor para descargas directas
+            url: file.webContentLink 
         }));
 
         res.json(fileList);

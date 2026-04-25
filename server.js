@@ -3,17 +3,16 @@ const multer = require('multer');
 const { google } = require('googleapis');
 const stream = require('stream');
 const path = require('path');
-const cors = require('cors'); // El héroe de la película
+const cors = require('cors');
 const app = express();
 
 // --- SOLUCIÓN MAESTRA AL ERROR CORS ---
 app.use(cors({
-    origin: '*', // Permite que cualquier Galaxy (S2, S3, S4) se conecte
+    origin: '*',
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
-// Refuerzo de cabeceras para navegadores vintage
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, POST");
@@ -21,8 +20,15 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- CONFIGURACIÓN EINSTEIN ---
-const CREDENTIALS = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+// --- CONFIGURACIÓN EINSTEIN (MEJORADA PARA RENDER) ---
+const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
+const CREDENTIALS = JSON.parse(rawCredentials);
+
+// Reparación de saltos de línea en la llave privada para evitar Error 500
+if (CREDENTIALS.private_key) {
+    CREDENTIALS.private_key = CREDENTIALS.private_key.replace(/\\n/g, '\n');
+}
+
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
 
 const auth = new google.auth.GoogleAuth({
@@ -33,7 +39,7 @@ const drive = google.drive({ version: 'v3', auth });
 
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 100 * 1024 * 1024 } // 100MB para tus APKs y ROMs
+    limits: { fileSize: 100 * 1024 * 1024 } 
 });
 
 app.use(express.static(__dirname));

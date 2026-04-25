@@ -6,25 +6,27 @@ const path = require('path');
 const cors = require('cors');
 const app = express();
 
-// --- SOLUCIÓN MAESTRA AL ERROR CORS ---
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
-}));
+// --- CONFIGURACIÓN DE SEGURIDAD GALAXY (CORS TOTAL) ---
+app.use(cors()); // Habilita la base de CORS
 
 app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET, POST");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    // Estas cabeceras son el "salvoconducto" para tus teléfonos antiguos
+    res.header("Access-Control-Allow-Origin", "*"); 
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    
+    // Responder de inmediato a las peticiones de verificación (preflight)
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
     next();
 });
 
-// --- CONFIGURACIÓN EINSTEIN (MEJORADA PARA RENDER) ---
+// --- CONFIGURACIÓN DE CREDENCIALES ---
 const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
 const CREDENTIALS = JSON.parse(rawCredentials);
 
-// Reparación de saltos de línea en la llave privada para evitar Error 500
+// Reparación de seguridad para la llave privada en servidores Render
 if (CREDENTIALS.private_key) {
     CREDENTIALS.private_key = CREDENTIALS.private_key.replace(/\\n/g, '\n');
 }
@@ -37,24 +39,28 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 
+// Configuración de Multer para archivos grandes (APKs, ROMs, etc)
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 100 * 1024 * 1024 } 
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB de límite
 });
 
 app.use(express.static(__dirname));
 
-// API: SUBIDA DIRECTA A TU NUBE GALAXY
+// API: SUBIDA DIRECTA A TU NUBE
 app.post('/api/upload', upload.single('archivo'), async (req, res) => {
-    if (!req.file) return res.status(400).json({ success: false, error: "No hay archivo" });
+    if (!req.file) {
+        console.log("⚠️ Intento de subida sin archivo.");
+        return res.status(400).json({ success: false, error: "No hay archivo" });
+    }
 
     try {
+        console.log(`📡 Iniciando órbita para: ${req.file.originalname} (${req.file.size} bytes)`);
+        
         const bufferStream = new stream.PassThrough();
         bufferStream.end(req.file.buffer);
 
-        console.log(`📡 Orbitando archivo: ${req.file.originalname}`);
-
-        await drive.files.create({
+        const response = await drive.files.create({
             requestBody: { 
                 name: req.file.originalname, 
                 parents: [FOLDER_ID] 
@@ -62,17 +68,21 @@ app.post('/api/upload', upload.single('archivo'), async (req, res) => {
             media: { 
                 mimeType: req.file.mimetype, 
                 body: bufferStream 
-            }
+            },
+            fields: 'id'
         });
 
-        res.json({ success: true });
+        console.log(`✅ Archivo en la nube. ID: ${response.data.id}`);
+        res.status(200).json({ success: true, id: response.data.id });
+
     } catch (err) {
-        console.error("❌ Error en la subida orbital:", err.message);
+        console.error("❌ ERROR CRÍTICO EN LA SUBIDA:", err.message);
+        // Enviamos el error detallado para saber si es falta de permisos en Drive
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// API: LISTADO COMPATIBLE
+// API: LISTADO DE ARCHIVOS
 app.get('/api/files', async (req, res) => {
     try {
         const response = await drive.files.list({
@@ -89,7 +99,7 @@ app.get('/api/files', async (req, res) => {
 
         res.json(fileList);
     } catch (err) {
-        console.error("❌ Error al listar:", err.message);
+        console.error("❌ Error al listar archivos:", err.message);
         res.status(500).json([]);
     }
 });
@@ -98,6 +108,6 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`🚀 SUPER GALAXY CLOUD ACTIVA`);
-    console.log(`🛰️ Conectado a carpeta: ${FOLDER_ID}`);
+    console.log(`🚀 SUPER GALAXY CLOUD ACTIVA EN PUERTO ${PORT}`);
+    console.log(`🛰️ Conectado a carpeta Drive: ${FOLDER_ID}`);
 });

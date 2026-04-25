@@ -7,8 +7,8 @@ const cors = require('cors');
 const app = express();
 
 // --- VERSIÓN DEL SISTEMA (GALAXY V-SYNC) ---
-// Subimos a 1.9 para forzar a los celulekes a refrescar el nuevo fix
-const SERVER_VERSION = "1.9"; 
+// Subimos a 2.1 para asegurar el fix de transferencia de propiedad
+const SERVER_VERSION = "2.1"; 
 
 // --- CONFIGURACIÓN DE SEGURIDAD PARA MÓVILES VINTAGE ---
 app.use(cors()); 
@@ -54,12 +54,12 @@ const upload = multer({
 
 app.use(express.static(__dirname));
 
-// --- SENSOR DE VERSIÓN (Para el bloqueo Aero del index.html) ---
+// --- SENSOR DE VERSIÓN ---
 app.get('/api/version', (req, res) => {
     res.json({ version: SERVER_VERSION });
 });
 
-// --- API DE SUBIDA: FIX DEFINITIVO DE CUOTA Y DOMINIO PROPIO ---
+// --- API DE SUBIDA: FIX MAESTRO DE CUOTA (TRANSFERENCIA) ---
 app.route('/api/upload')
     .post(upload.single('archivo'), async (req, res) => {
         if (!req.file) {
@@ -72,6 +72,7 @@ app.route('/api/upload')
             const bufferStream = new stream.PassThrough();
             bufferStream.end(req.file.buffer);
 
+            // 1. EL BOT SUBE EL ARCHIVO
             const response = await drive.files.create({
                 requestBody: { 
                     name: req.file.originalname, 
@@ -82,18 +83,28 @@ app.route('/api/upload')
                     body: bufferStream 
                 },
                 fields: 'id',
-                // --- BLINDAJE PARA DOMINIOS PROPIOS ---
-                supportsAllDrives: true,
-                ignoreDefaultVisibility: true,
-                keepRevisionForever: false
+                supportsAllDrives: true
             });
 
-            console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
-            res.status(200).json({ success: true, id: response.data.id });
+            const fileId = response.data.id;
+
+            // 2. TRANSFERENCIA DE PROPIEDAD A TU GMAIL (Adiós error de cuota)
+            await drive.permissions.create({
+                fileId: fileId,
+                transferOwnership: true,
+                requestBody: {
+                    type: 'user',
+                    role: 'owner',
+                    emailAddress: 'gchamba479@gmail.com' 
+                },
+                supportsAllDrives: true
+            });
+
+            console.log(`✅ ¡Éxito! Propiedad transferida. ID: ${fileId}`);
+            res.status(200).json({ success: true, id: fileId });
 
         } catch (err) {
             console.error("❌ ERROR EN DRIVE:", err.message);
-            // Mandamos el error detallado para cazarlo desde el cel
             res.status(500).json({ success: false, error: err.message });
         }
     })
@@ -129,5 +140,5 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`🚀 GALAXY CLOUD v${SERVER_VERSION} ACTIVA EN PUERTO ${PORT}`);
+    console.log(`🚀 GALAXY CLOUD v${SERVER_VERSION} ACTIVA`);
 });

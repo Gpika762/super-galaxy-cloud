@@ -7,9 +7,10 @@ const cors = require('cors');
 const app = express();
 
 // --- VERSIÓN DEL SISTEMA (GALAXY V-SYNC) ---
-const SERVER_VERSION = "1.8"; 
+// Subimos a 1.9 para forzar a los celulekes a refrescar el nuevo fix
+const SERVER_VERSION = "1.9"; 
 
-// --- CONFIGURACIÓN DE SEGURIDAD PARA CELULEKES ---
+// --- CONFIGURACIÓN DE SEGURIDAD PARA MÓVILES VINTAGE ---
 app.use(cors()); 
 
 app.use((req, res, next) => {
@@ -53,12 +54,12 @@ const upload = multer({
 
 app.use(express.static(__dirname));
 
-// --- SENSOR DE VERSIÓN ---
+// --- SENSOR DE VERSIÓN (Para el bloqueo Aero del index.html) ---
 app.get('/api/version', (req, res) => {
     res.json({ version: SERVER_VERSION });
 });
 
-// --- API DE SUBIDA: FIX DEFINITIVO DE CUOTA ---
+// --- API DE SUBIDA: FIX DEFINITIVO DE CUOTA Y DOMINIO PROPIO ---
 app.route('/api/upload')
     .post(upload.single('archivo'), async (req, res) => {
         if (!req.file) {
@@ -81,7 +82,7 @@ app.route('/api/upload')
                     body: bufferStream 
                 },
                 fields: 'id',
-                // BLINDAJE PARA DOMINIOS PROPIOS Y CUOTA
+                // --- BLINDAJE PARA DOMINIOS PROPIOS ---
                 supportsAllDrives: true,
                 ignoreDefaultVisibility: true,
                 keepRevisionForever: false
@@ -92,6 +93,7 @@ app.route('/api/upload')
 
         } catch (err) {
             console.error("❌ ERROR EN DRIVE:", err.message);
+            // Mandamos el error detallado para cazarlo desde el cel
             res.status(500).json({ success: false, error: err.message });
         }
     })
@@ -127,5 +129,5 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`🚀 GALAXY CLOUD v${SERVER_VERSION} ACTIVA`);
+    console.log(`🚀 GALAXY CLOUD v${SERVER_VERSION} ACTIVA EN PUERTO ${PORT}`);
 });

@@ -6,7 +6,10 @@ const path = require('path');
 const cors = require('cors');
 const app = express();
 
-// --- CONFIGURACIÓN DE SEGURIDAD PARA MÓVILES VINTAGE ---
+// --- VERSIÓN DEL SISTEMA (GALAXY V-SYNC) ---
+const SERVER_VERSION = "1.8"; 
+
+// --- CONFIGURACIÓN DE SEGURIDAD PARA CELULEKES ---
 app.use(cors()); 
 
 app.use((req, res, next) => {
@@ -20,7 +23,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- CONFIGURACIÓN DE CREDENCIALES (REPARACIÓN DE CUOTA) ---
+// --- CONFIGURACIÓN DE CREDENCIALES ---
 let CREDENTIALS;
 try {
     const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
@@ -50,7 +53,12 @@ const upload = multer({
 
 app.use(express.static(__dirname));
 
-// --- API DE SUBIDA: EL FIX DE LA CUOTA ---
+// --- SENSOR DE VERSIÓN ---
+app.get('/api/version', (req, res) => {
+    res.json({ version: SERVER_VERSION });
+});
+
+// --- API DE SUBIDA: FIX DEFINITIVO DE CUOTA ---
 app.route('/api/upload')
     .post(upload.single('archivo'), async (req, res) => {
         if (!req.file) {
@@ -58,12 +66,11 @@ app.route('/api/upload')
         }
 
         try {
-            console.log(`📡 Orbitando desde móvil: ${req.file.originalname}`);
+            console.log(`📡 Orbitando: ${req.file.originalname} (v${SERVER_VERSION})`);
             
             const bufferStream = new stream.PassThrough();
             bufferStream.end(req.file.buffer);
 
-            // IMPORTANTE: supportsAllDrives permite usar tu espacio personal
             const response = await drive.files.create({
                 requestBody: { 
                     name: req.file.originalname, 
@@ -74,7 +81,10 @@ app.route('/api/upload')
                     body: bufferStream 
                 },
                 fields: 'id',
-                supportsAllDrives: true 
+                // BLINDAJE PARA DOMINIOS PROPIOS Y CUOTA
+                supportsAllDrives: true,
+                ignoreDefaultVisibility: true,
+                keepRevisionForever: false
             });
 
             console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
@@ -82,7 +92,6 @@ app.route('/api/upload')
 
         } catch (err) {
             console.error("❌ ERROR EN DRIVE:", err.message);
-            // Mandamos el error simplificado para que el cel lo muestre
             res.status(500).json({ success: false, error: err.message });
         }
     })
@@ -118,5 +127,5 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`🚀 SUPER GALAXY CLOUD ACTIVA`);
+    console.log(`🚀 GALAXY CLOUD v${SERVER_VERSION} ACTIVA`);
 });

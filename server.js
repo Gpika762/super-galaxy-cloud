@@ -7,28 +7,32 @@ const cors = require('cors');
 const app = express();
 
 // --- CONFIGURACIÓN DE SEGURIDAD GALAXY (CORS TOTAL) ---
-app.use(cors()); // Habilita la base de CORS
+app.use(cors()); 
 
 app.use((req, res, next) => {
-    // Estas cabeceras son el "salvoconducto" para tus teléfonos antiguos
+    // Cabeceras de salvoconducto para Android vintage
     res.header("Access-Control-Allow-Origin", "*"); 
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
     
-    // Responder de inmediato a las peticiones de verificación (preflight)
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
     next();
 });
 
-// --- CONFIGURACIÓN DE CREDENCIALES ---
-const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
-const CREDENTIALS = JSON.parse(rawCredentials);
+// --- CONFIGURACIÓN DE CREDENCIALES CON AUTOLIMPIEZA ---
+let CREDENTIALS;
+try {
+    const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
+    CREDENTIALS = JSON.parse(rawCredentials);
 
-// Reparación de seguridad para la llave privada en servidores Render
-if (CREDENTIALS.private_key) {
-    CREDENTIALS.private_key = CREDENTIALS.private_key.replace(/\\n/g, '\n');
+    // Reparación vital: Render a veces rompe los saltos de línea de la llave privada
+    if (CREDENTIALS.private_key) {
+        CREDENTIALS.private_key = CREDENTIALS.private_key.replace(/\\n/g, '\n');
+    }
+} catch (err) {
+    console.error("❌ ERROR AL LEER GOOGLE_CREDENTIALS:", err.message);
 }
 
 const FOLDER_ID = process.env.DRIVE_FOLDER_ID;
@@ -39,10 +43,10 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 
-// Configuración de Multer para archivos grandes (APKs, ROMs, etc)
+// Configuración de Multer para archivos de hasta 100MB
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 100 * 1024 * 1024 } // 100MB de límite
+    limits: { fileSize: 100 * 1024 * 1024 } 
 });
 
 app.use(express.static(__dirname));
@@ -50,12 +54,11 @@ app.use(express.static(__dirname));
 // API: SUBIDA DIRECTA A TU NUBE
 app.post('/api/upload', upload.single('archivo'), async (req, res) => {
     if (!req.file) {
-        console.log("⚠️ Intento de subida sin archivo.");
         return res.status(400).json({ success: false, error: "No hay archivo" });
     }
 
     try {
-        console.log(`📡 Iniciando órbita para: ${req.file.originalname} (${req.file.size} bytes)`);
+        console.log(`📡 Orbitando: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
         
         const bufferStream = new stream.PassThrough();
         bufferStream.end(req.file.buffer);
@@ -72,12 +75,11 @@ app.post('/api/upload', upload.single('archivo'), async (req, res) => {
             fields: 'id'
         });
 
-        console.log(`✅ Archivo en la nube. ID: ${response.data.id}`);
+        console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
         res.status(200).json({ success: true, id: response.data.id });
 
     } catch (err) {
-        console.error("❌ ERROR CRÍTICO EN LA SUBIDA:", err.message);
-        // Enviamos el error detallado para saber si es falta de permisos en Drive
+        console.error("❌ ERROR EN DRIVE:", err.message);
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -99,7 +101,7 @@ app.get('/api/files', async (req, res) => {
 
         res.json(fileList);
     } catch (err) {
-        console.error("❌ Error al listar archivos:", err.message);
+        console.error("❌ Error al listar:", err.message);
         res.status(500).json([]);
     }
 });

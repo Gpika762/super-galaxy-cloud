@@ -6,7 +6,7 @@ const path = require('path');
 const cors = require('cors');
 const app = express();
 
-// --- CONFIGURACIÓN DE SEGURIDAD GALAXY (CORS TOTAL) ---
+// --- CONFIGURACIÓN DE SEGURIDAD PARA MÓVILES VINTAGE ---
 app.use(cors()); 
 
 app.use((req, res, next) => {
@@ -20,14 +20,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- CONFIGURACIÓN DE CREDENCIALES CON AUTOLIMPIEZA ---
+// --- CONFIGURACIÓN DE CREDENCIALES (REPARACIÓN DE CUOTA) ---
 let CREDENTIALS;
 try {
     const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
     CREDENTIALS = JSON.parse(rawCredentials);
 
     if (CREDENTIALS.private_key) {
-        // Limpieza profunda de la llave para evitar Error 500 en Render
         CREDENTIALS.private_key = CREDENTIALS.private_key
             .replace(/\\n/g, '\n')
             .replace(/"/g, ''); 
@@ -51,7 +50,7 @@ const upload = multer({
 
 app.use(express.static(__dirname));
 
-// --- API DE SUBIDA CON PROTECCIÓN "ANTI-GET" ---
+// --- API DE SUBIDA: EL FIX DE LA CUOTA ---
 app.route('/api/upload')
     .post(upload.single('archivo'), async (req, res) => {
         if (!req.file) {
@@ -59,11 +58,12 @@ app.route('/api/upload')
         }
 
         try {
-            console.log(`📡 Orbitando: ${req.file.originalname}`);
+            console.log(`📡 Orbitando desde móvil: ${req.file.originalname}`);
             
             const bufferStream = new stream.PassThrough();
             bufferStream.end(req.file.buffer);
 
+            // IMPORTANTE: supportsAllDrives permite usar tu espacio personal
             const response = await drive.files.create({
                 requestBody: { 
                     name: req.file.originalname, 
@@ -73,7 +73,8 @@ app.route('/api/upload')
                     mimeType: req.file.mimetype, 
                     body: bufferStream 
                 },
-                fields: 'id'
+                fields: 'id',
+                supportsAllDrives: true 
             });
 
             console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
@@ -81,11 +82,11 @@ app.route('/api/upload')
 
         } catch (err) {
             console.error("❌ ERROR EN DRIVE:", err.message);
+            // Mandamos el error simplificado para que el cel lo muestre
             res.status(500).json({ success: false, error: err.message });
         }
     })
     .get((req, res) => {
-        // Si el navegador intenta entrar aquí por error, lo devolvemos al inicio
         res.redirect('/');
     });
 
@@ -95,7 +96,9 @@ app.get('/api/files', async (req, res) => {
         const response = await drive.files.list({
             q: `'${FOLDER_ID}' in parents and trashed = false`,
             fields: 'files(id, name, size, webContentLink)',
-            orderBy: 'name'
+            orderBy: 'name',
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         });
 
         const fileList = response.data.files.map(file => ({
@@ -115,5 +118,5 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-    console.log(`🚀 SUPER GALAXY CLOUD ACTIVA EN PUERTO ${PORT}`);
+    console.log(`🚀 SUPER GALAXY CLOUD ACTIVA`);
 });

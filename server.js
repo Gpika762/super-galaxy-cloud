@@ -10,7 +10,6 @@ const app = express();
 app.use(cors()); 
 
 app.use((req, res, next) => {
-    // Cabeceras de salvoconducto para Android vintage
     res.header("Access-Control-Allow-Origin", "*"); 
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
@@ -27,9 +26,11 @@ try {
     const rawCredentials = process.env.GOOGLE_CREDENTIALS || '{}';
     CREDENTIALS = JSON.parse(rawCredentials);
 
-    // Reparación vital: Render a veces rompe los saltos de línea de la llave privada
     if (CREDENTIALS.private_key) {
-        CREDENTIALS.private_key = CREDENTIALS.private_key.replace(/\\n/g, '\n');
+        // Limpieza profunda de la llave para evitar Error 500 en Render
+        CREDENTIALS.private_key = CREDENTIALS.private_key
+            .replace(/\\n/g, '\n')
+            .replace(/"/g, ''); 
     }
 } catch (err) {
     console.error("❌ ERROR AL LEER GOOGLE_CREDENTIALS:", err.message);
@@ -43,7 +44,6 @@ const auth = new google.auth.GoogleAuth({
 });
 const drive = google.drive({ version: 'v3', auth });
 
-// Configuración de Multer para archivos de hasta 100MB
 const upload = multer({ 
     storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 } 
@@ -51,38 +51,43 @@ const upload = multer({
 
 app.use(express.static(__dirname));
 
-// API: SUBIDA DIRECTA A TU NUBE
-app.post('/api/upload', upload.single('archivo'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, error: "No hay archivo" });
-    }
+// --- API DE SUBIDA CON PROTECCIÓN "ANTI-GET" ---
+app.route('/api/upload')
+    .post(upload.single('archivo'), async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No hay archivo" });
+        }
 
-    try {
-        console.log(`📡 Orbitando: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`);
-        
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(req.file.buffer);
+        try {
+            console.log(`📡 Orbitando: ${req.file.originalname}`);
+            
+            const bufferStream = new stream.PassThrough();
+            bufferStream.end(req.file.buffer);
 
-        const response = await drive.files.create({
-            requestBody: { 
-                name: req.file.originalname, 
-                parents: [FOLDER_ID] 
-            },
-            media: { 
-                mimeType: req.file.mimetype, 
-                body: bufferStream 
-            },
-            fields: 'id'
-        });
+            const response = await drive.files.create({
+                requestBody: { 
+                    name: req.file.originalname, 
+                    parents: [FOLDER_ID] 
+                },
+                media: { 
+                    mimeType: req.file.mimetype, 
+                    body: bufferStream 
+                },
+                fields: 'id'
+            });
 
-        console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
-        res.status(200).json({ success: true, id: response.data.id });
+            console.log(`✅ ¡Éxito! Archivo ID: ${response.data.id}`);
+            res.status(200).json({ success: true, id: response.data.id });
 
-    } catch (err) {
-        console.error("❌ ERROR EN DRIVE:", err.message);
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
+        } catch (err) {
+            console.error("❌ ERROR EN DRIVE:", err.message);
+            res.status(500).json({ success: false, error: err.message });
+        }
+    })
+    .get((req, res) => {
+        // Si el navegador intenta entrar aquí por error, lo devolvemos al inicio
+        res.redirect('/');
+    });
 
 // API: LISTADO DE ARCHIVOS
 app.get('/api/files', async (req, res) => {
@@ -111,5 +116,4 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 SUPER GALAXY CLOUD ACTIVA EN PUERTO ${PORT}`);
-    console.log(`🛰️ Conectado a carpeta Drive: ${FOLDER_ID}`);
 });

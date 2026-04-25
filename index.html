@@ -1,62 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Galaxy Cloud</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Galaxy Cloud Pro</title>
     <style>
-        body { background: #004a7c; background: linear-gradient(135deg, #004a7c 0%, #0094ff 100%); font-family: sans-serif; color: white; padding: 15px; margin: 0; }
-        .glass { background: rgba(255, 255, 255, 0.2); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.3); padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 600px; margin: auto; }
-        h1 { text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .upload-area { border: 2px dashed rgba(255,255,255,0.5); border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px; background: rgba(255,255,255,0.1); }
-        .file-item { background: rgba(255,255,255,0.1); margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .btn { background: #00f2fe; color: #004a7c; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
-        .file-info { font-size: 14px; }
+        :root { --aero-blue: rgba(0, 148, 255, 0.4); --glass: rgba(255, 255, 255, 0.15); }
+        
+        body { 
+            background: #000; 
+            background-image: radial-gradient(circle at center, #003366 0%, #000 100%);
+            color: white; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 20px; min-height: 100vh;
+        }
+
+        /* Efecto Cristal Aero */
+        .container {
+            max-width: 700px; margin: auto;
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px; padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 30px; text-shadow: 0 0 10px #0094ff; }
+
+        /* Zona de Subida */
+        .upload-card {
+            background: rgba(0,0,0,0.3); border: 2px dashed var(--aero-blue);
+            border-radius: 15px; padding: 30px; text-align: center;
+            transition: 0.3s; cursor: pointer; margin-bottom: 30px;
+        }
+        .upload-card:hover { background: rgba(0, 148, 255, 0.1); border-color: #0094ff; }
+
+        /* Lista de Archivos */
+        .file-list { display: flex; flex-direction: column; gap: 12px; }
+        .file-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 15px;
+            display: flex; align-items: center; justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .file-info { display: flex; align-items: center; gap: 15px; }
+        .file-icon { font-size: 24px; }
+        .file-name { font-weight: 500; font-size: 14px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-meta { font-size: 11px; color: #aaa; }
+
+        /* Botones */
+        .btn-download {
+            background: linear-gradient(180deg, #0094ff, #005fa3);
+            color: white; border: none; padding: 8px 16px;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+            text-decoration: none; font-size: 12px;
+            box-shadow: 0 4px 15px rgba(0, 148, 255, 0.3);
+        }
+
+        /* Barra de carga */
+        #progress-container { display: none; margin-top: 15px; }
+        .progress-bar { width: 100%; background: #222; height: 10px; border-radius: 5px; overflow: hidden; }
+        .progress-fill { width: 0%; height: 100%; background: #0094ff; transition: width 0.3s; }
     </style>
 </head>
 <body>
-    <div class="glass">
-        <h1>🌌 Super Galaxy Cloud 🌌</h1>
-        
-        <div class="upload-area">
-            <label for="input-file" style="cursor:pointer">
-                <span style="font-size:40px">📤</span><br>Subir archivo desde este Galaxy
-            </label>
-            <input type="file" id="input-file" style="display:none">
-            <p id="msg"></p>
-        </div>
 
-        <div id="lista-archivos"></div>
+<div class="container">
+    <h1>GALAXY CLOUD <span>PRO</span></h1>
+
+    <div class="upload-card" onclick="document.getElementById('file-input').click()">
+        <span style="font-size: 40px;">🛸</span>
+        <p style="margin: 10px 0 0;">Toca para enviar archivos a la órbita</p>
+        <input type="file" id="file-input" style="display: none;">
+        
+        <div id="progress-container">
+            <div class="file-meta" id="status">Subiendo...</div>
+            <div class="progress-bar"><div class="progress-fill" id="bar"></div></div>
+        </div>
     </div>
 
-    <script>
-        const input = document.getElementById('input-file');
-        const lista = document.getElementById('lista-archivos');
+    <div id="file-list" class="file-list">
+        </div>
+</div>
 
-        // Función para subir
-        input.onchange = function() {
-            const file = input.files[0];
-            const formData = new FormData();
-            formData.append('archivo', file);
-            document.getElementById('msg').innerText = "Subiendo...";
+<script>
+    const fileInput = document.getElementById('file-input');
+    const fileListDiv = document.getElementById('file-list');
 
-            fetch('/api/upload', { method: 'POST', body: formData })
-            .then(() => { location.reload(); })
-            .catch(() => { alert("Error al subir"); });
+    // Función para detectar iconos según extensión
+    function getIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        if(['apk'].includes(ext)) return '🤖';
+        if(['jpg','jpeg','png','gif'].includes(ext)) return '🖼️';
+        if(['mp3','wav'].includes(ext)) return '🎵';
+        if(['mp4','3gp'].includes(ext)) return '🎬';
+        if(['zip','rar','7z'].includes(ext)) return '📦';
+        return '📄';
+    }
+
+    // Subida con AJAX para ver el progreso (útil en S4)
+    fileInput.onchange = function() {
+        const file = fileInput.files[0];
+        if(!file) return;
+
+        const formData = new FormData();
+        formData.append('archivo', file);
+
+        document.getElementById('progress-container').style.display = 'block';
+        const bar = document.getElementById('bar');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload', true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = (e.loaded / e.total) * 100;
+                bar.style.width = percent + '%';
+            }
         };
 
-        // Cargar lista
-        fetch('/api/files')
-            .then(res => res.json())
-            .then(files => {
-                files.forEach(f => {
-                    lista.innerHTML += `
-                        <div class="file-item">
-                            <div class="file-info"><b>${f.name}</b><br>${f.size}</div>
-                            <a href="${f.url}" class="btn" download>BAJAR</a>
-                        </div>`;
-                });
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                location.reload();
+            } else {
+                alert('Error en el lanzamiento orbital');
+            }
+        };
+
+        xhr.send(formData);
+    };
+
+    // Cargar lista desde el servidor
+    fetch('/api/files')
+        .then(res => res.json())
+        .then(files => {
+            if(files.length === 0) {
+                fileListDiv.innerHTML = '<p style="text-align:center; color:#666;">La órbita está vacía...</p>';
+                return;
+            }
+            files.forEach(f => {
+                fileListDiv.innerHTML += `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-icon">${getIcon(f.name)}</span>
+                            <div>
+                                <div class="file-name">${f.name}</div>
+                                <div class="file-meta">${f.size || '---'}</div>
+                            </div>
+                        </div>
+                        <a href="${f.url}" class="btn-download" target="_blank">BAJAR</a>
+                    </div>
+                `;
             });
-    </script>
+        });
+</script>
+
 </body>
 </html>

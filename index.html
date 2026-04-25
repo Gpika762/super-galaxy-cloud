@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Galaxy Cloud</title>
+    <style>
+        body { background: #004a7c; background: linear-gradient(135deg, #004a7c 0%, #0094ff 100%); font-family: sans-serif; color: white; padding: 15px; margin: 0; }
+        .glass { background: rgba(255, 255, 255, 0.2); border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.3); padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 600px; margin: auto; }
+        h1 { text-align: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .upload-area { border: 2px dashed rgba(255,255,255,0.5); border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px; background: rgba(255,255,255,0.1); }
+        .file-item { background: rgba(255,255,255,0.1); margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn { background: #00f2fe; color: #004a7c; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
+        .file-info { font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="glass">
+        <h1>🌌 Super Galaxy Cloud 🌌</h1>
+        
+        <div class="upload-area">
+            <label for="input-file" style="cursor:pointer">
+                <span style="font-size:40px">📤</span><br>Subir archivo desde este Galaxy
+            </label>
+            <input type="file" id="input-file" style="display:none">
+            <p id="msg"></p>
+        </div>
+
+        <div id="lista-archivos"></div>
+    </div>
+
+    <script>
+        const input = document.getElementById('input-file');
+        const lista = document.getElementById('lista-archivos');
+
+        // Función para subir
+        input.onchange = function() {
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('archivo', file);
+            document.getElementById('msg').innerText = "Subiendo...";
+
+            fetch('/api/upload', { method: 'POST', body: formData })
+            .then(() => { location.reload(); })
+            .catch(() => { alert("Error al subir"); });
+        };
+
+        // Cargar lista
+        fetch('/api/files')
+            .then(res => res.json())
+            .then(files => {
+                files.forEach(f => {
+                    lista.innerHTML += `
+                        <div class="file-item">
+                            <div class="file-info"><b>${f.name}</b><br>${f.size}</div>
+                            <a href="${f.url}" class="btn" download>BAJAR</a>
+                        </div>`;
+                });
+            });
+    </script>
+</body>
+</html>

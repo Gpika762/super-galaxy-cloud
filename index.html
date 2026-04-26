@@ -37,10 +37,11 @@
         /* --- PANTALLA DE MANTENIMIENTO --- */
         #maint-overlay {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column;
+            background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column;
             justify-content: center; align-items: center; text-align: center;
         }
-        .maint-icon { font-size: 50px; margin-bottom: 15px; filter: drop-shadow(0 0 10px var(--error)); }
+        .maint-icon { font-size: 50px; margin-bottom: 15px; animation: rotate 2s linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         h1 { text-align: center; font-weight: 200; letter-spacing: 4px; margin: 0 0 20px; font-size: 22px; text-shadow: 0 0 15px var(--aero-glow); }
         h1 span { font-weight: 800; color: var(--aero-blue); }
@@ -58,15 +59,16 @@
             border-radius: 20px; padding: 30px 10px; text-align: center;
             transition: 0.3s; cursor: pointer; margin-bottom: 20px;
         }
-        .upload-card.disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--error); }
+        .upload-card:active { transform: scale(0.98); background: rgba(255,255,255,0.08); }
         .upload-card span { font-size: 40px; display: block; filter: drop-shadow(0 0 10px var(--aero-blue)); }
 
-        .file-list { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; }
+        .file-list { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
         .file-item {
             background: rgba(255,255,255,0.07); border-radius: 15px; padding: 12px;
             display: flex; align-items: center; justify-content: space-between;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1); animation: fadeIn 0.4s ease;
         }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .file-info { display: flex; align-items: center; gap: 10px; width: 65%; }
         .file-icon { font-size: 24px; }
@@ -74,35 +76,44 @@
         .file-meta { font-size: 10px; color: #888; }
 
         .actions { display: flex; gap: 8px; }
-        .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold; }
-        .btn-del { display: none; background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3); padding: 8px; border-radius: 8px; font-size: 10px; cursor: pointer; }
+        .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold; transition: 0.2s; }
+        .btn-dl:active { background: #007acc; }
+        
+        .btn-del { 
+            background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3); 
+            padding: 8px 12px; border-radius: 8px; font-size: 10px; cursor: pointer; font-weight: bold;
+        }
+        .btn-del:active { background: var(--error); color: white; }
+
+        #progress-container { display: none; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="maint-overlay">
-        <div class="maint-icon">🔧</div>
-        <h3 style="color:var(--error); margin:0;">MANTENIMIENTO</h3>
-        <p style="font-size:11px; color:#aaa; padding:10px;">La órbita está cerrada por reparaciones.<br>Inténtalo más tarde.</p>
+        <div class="maint-icon">⚙️</div>
+        <h3 style="color:var(--error); margin:0; letter-spacing: 2px;">MANTENIMIENTO</h3>
+        <p style="font-size:11px; color:#aaa; padding:15px;">Motores en revisión.<br>La órbita abrirá pronto.</p>
+        <button onclick="document.getElementById('maint-overlay').style.display='none'" style="background:transparent; border:1px solid #333; color:#555; font-size:9px; border-radius:5px; padding:5px;">Cerrar aviso</button>
     </div>
 
     <h1>GALAXY CLOUD <span>PRO</span></h1>
 
     <div class="storage-card">
         <div class="storage-info">
-            <span>OCUPACIÓN DE ÓRBITA</span>
-            <span id="storage-txt">0% / 25GB</span>
+            <span>ESTADO DEL DISCO</span>
+            <span id="storage-txt">Calculando...</span>
         </div>
         <div class="storage-bar"><div class="storage-fill" id="storage-fill"></div></div>
     </div>
 
-    <div id="drop-zone" class="upload-card" onclick="triggerUpload()">
+    <div id="drop-zone" class="upload-card" onclick="document.getElementById('file-input').click()">
         <span id="rocket-icon">🛸</span>
-        <p id="status-main" style="margin: 10px 0 0; font-size: 12px; color: #ccc;">Lanzar archivo</p>
+        <p id="status-main" style="margin: 10px 0 0; font-size: 12px; color: #ccc;">Subir archivo</p>
         <input type="file" id="file-input" style="display: none;">
         
-        <div id="progress-container" style="display:none; margin-top:15px;">
+        <div id="progress-container">
             <div id="status-percent" style="font-size: 10px; margin-bottom: 5px; color:#aaa;">Transfiriendo...</div>
             <div class="storage-bar"><div class="storage-fill" id="bar" style="width:0%"></div></div>
         </div>
@@ -113,18 +124,13 @@
 
 <script>
     var isMaint = false;
-    var isAdmin = false;
-
-    function triggerUpload() {
-        if(!isMaint) document.getElementById('file-input').click();
-    }
 
     function getIcon(name) {
         var ext = name.split('.').pop().toLowerCase();
         if(ext === 'apk') return '🤖';
-        if(['jpg','jpeg','png','gif'].indexOf(ext) > -1) return '🖼️';
-        if(['mp3','wav'].indexOf(ext) > -1) return '🎵';
-        if(['mp4','3gp'].indexOf(ext) > -1) return '🎬';
+        if(['jpg','jpeg','png','gif','webp'].indexOf(ext) > -1) return '🖼️';
+        if(['mp3','wav','ogg'].indexOf(ext) > -1) return '🎵';
+        if(['mp4','3gp','mov'].indexOf(ext) > -1) return '🎬';
         return '📄';
     }
 
@@ -132,41 +138,31 @@
         var xhr = new XMLHttpRequest();
         xhr.open('GET', 'api/files', true);
         
-        // Enviamos el token si existe (Para tu Notebook)
+        // Token DELTARUNEGOD para saltar bloqueos si eres tú
         var token = localStorage.getItem('app_secure_key');
         if(token) xhr.setRequestHeader('x-admin-auth', token);
 
         xhr.onload = function() {
             if (xhr.status === 200) {
                 var files = JSON.parse(xhr.responseText);
-                isAdmin = xhr.getResponseHeader('x-is-admin') === 'true';
                 dibujarLista(files);
             } else if (xhr.status === 503) {
-                activarMantenimiento();
+                document.getElementById('maint-overlay').style.display = 'flex';
+                isMaint = true;
             }
         };
         xhr.send();
     }
 
-    function activarMantenimiento() {
-        isMaint = true;
-        document.getElementById('maint-overlay').style.display = 'flex';
-        document.getElementById('drop-zone').classList.add('disabled');
-        document.getElementById('status-main').innerText = "Sistema bloqueado";
-        document.getElementById('rocket-icon').innerText = "🛠️";
-    }
-
     function dibujarLista(files) {
         var fileListDiv = document.getElementById('file-list');
         fileListDiv.innerHTML = '';
-        var totalSize = 0;
 
         if(files.length === 0) {
-            fileListDiv.innerHTML = '<p style="text-align:center; color:#444; font-size:12px;">Órbita vacía.</p>';
+            fileListDiv.innerHTML = '<p style="text-align:center; color:#444; font-size:12px; margin-top:20px;">Nube vacía.</p>';
         }
 
         files.forEach(function(f) {
-            var btnDel = isAdmin ? '<button class="btn-del" style="display:block" onclick="eliminar(\'' + f.id + '\')">X</button>' : '';
             fileListDiv.innerHTML += `
                 <div class="file-item">
                     <div class="file-info">
@@ -178,7 +174,7 @@
                     </div>
                     <div class="actions">
                         <a href="${f.url}" class="btn-dl" target="_blank">Bajar</a>
-                        ${btnDel}
+                        <button class="btn-del" onclick="eliminar('${f.id}')">X</button>
                     </div>
                 </div>`;
         });
@@ -186,20 +182,26 @@
     }
 
     function eliminar(id) {
-        if(!confirm("¿Desintegrar archivo?")) return;
+        if(!confirm("¿Borrar permanentemente?")) return;
         var xhr = new XMLHttpRequest();
+        // El id ya viene como 'folder/nombre'
         xhr.open('DELETE', 'api/files/' + id, true);
+        
         var token = localStorage.getItem('app_secure_key');
         if(token) xhr.setRequestHeader('x-admin-auth', token);
         
         xhr.onload = function() {
-            if(xhr.status === 200) { cargarArchivos(); }
-            else { alert("No tienes permiso o error de red."); }
+            if(xhr.status === 200) { 
+                cargarArchivos(); 
+            } else { 
+                alert("Error: No se pudo eliminar."); 
+            }
         };
         xhr.send();
     }
 
     function actualizarEspacio(numFiles) {
+        // Simulación: cada archivo ocupa aprox 1.5% del espacio free
         var porc = (numFiles * 1.5); 
         if(porc > 100) porc = 100;
         document.getElementById('storage-fill').style.width = porc + '%';
@@ -208,7 +210,7 @@
 
     document.getElementById('file-input').onchange = function() {
         var file = this.files[0];
-        if(!file || isMaint) return;
+        if(!file) return;
 
         var formData = new FormData();
         formData.append('archivo', file);
@@ -218,6 +220,7 @@
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'api/upload', true);
+        
         var token = localStorage.getItem('app_secure_key');
         if(token) xhr.setRequestHeader('x-admin-auth', token);
 
@@ -225,13 +228,17 @@
             if (e.lengthComputable) {
                 var p = (e.loaded / e.total) * 100;
                 document.getElementById('bar').style.width = p + '%';
-                document.getElementById('status-percent').innerText = 'Lanzando: ' + Math.round(p) + '%';
+                document.getElementById('status-percent').innerText = 'Subiendo: ' + Math.round(p) + '%';
             }
         };
 
         xhr.onload = function() {
-            if (xhr.status === 200) { location.reload(); }
-            else { alert("Error al subir. ¿Está el sistema en mantenimiento?"); location.reload(); }
+            if (xhr.status === 200) { 
+                location.reload(); 
+            } else { 
+                alert("Subida fallida. Sistema en mantenimiento."); 
+                location.reload();
+            }
         };
         xhr.send(formData);
     };
@@ -241,3 +248,4 @@
 
 </body>
 </html>
+

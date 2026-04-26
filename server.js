@@ -80,20 +80,26 @@ app.get('/api/files', checkStatus, async (req, res) => {
     }
 });
 
-// 3. RUTA DE ELIMINACIÓN (Solo para el Admin)
-app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
-    if (!req.isBoss) return res.status(401).json({ error: "No tienes rango para desintegrar archivos" });
-
+// ELIMINACIÓN CORREGIDA
+app.delete('/api/files/:folder/:id', checkMantenimiento, async (req, res) => {
     try {
+        // Reconstruimos el ID uniendo la carpeta y el nombre
         const publicId = `${req.params.folder}/${req.params.id}`;
+        console.log("Intentando borrar:", publicId);
+
+        // Intentamos borrar como imagen, si falla como raw (APK/Data), si falla como video
         let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-        
         if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
         if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
 
-        res.json({ success: true, message: "Archivo eliminado" });
+        if (result.result === 'ok') {
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ error: "Cloudinary no encontró el archivo" });
+        }
     } catch (err) {
-        res.status(500).json({ error: "Fallo en el borrado" });
+        console.error(err);
+        res.status(500).json({ error: "Error interno del servidor" });
     }
 });
 

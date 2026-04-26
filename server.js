@@ -9,9 +9,9 @@ const app = express();
 app.use(cors());
 app.use(express.static(__dirname));
 
-// --- CONFIGURACIÓN DE SEGURIDAD INVISIBLE ---
-const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY; // Agrégala en Render (Environment Variables)
-let modoMantenimiento = false; // Interruptor general
+// --- CONFIGURACIÓN ---
+const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY; 
+let modoMantenimiento = false; 
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
@@ -30,22 +30,21 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// --- MIDDLEWARE DE AUTORIZACIÓN ---
+// --- MIDDLEWARE DE AUTORIZACIÓN (Unificado) ---
 const checkStatus = (req, res, next) => {
     const userToken = req.headers['x-admin-auth'];
     const isBoss = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
     
-    // Si estamos en mantenimiento y no eres el jefe, bloqueamos
+    // Si hay mantenimiento y no eres el jefe, bloqueamos
     if (modoMantenimiento && !isBoss) {
         return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO" });
     }
     
-    // Guardamos el rango en el objeto request para usarlo luego
     req.isBoss = isBoss;
     next();
 };
 
-// 1. RUTA DE SUBIDA (Protegida por mantenimiento)
+// 1. SUBIDA
 app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
@@ -55,7 +54,7 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     }
 });
 
-// 2. RUTA DE LISTADO (Inyecta el rol de admin en la cabecera)
+// 2. LISTADO
 app.get('/api/files', checkStatus, async (req, res) => {
     try {
         const result = await cloudinary.search
@@ -71,23 +70,20 @@ app.get('/api/files', checkStatus, async (req, res) => {
             url: f.secure_url
         }));
 
-        // Le avisamos al index.html si eres el admin de forma discreta
         res.set('x-is-admin', req.isBoss ? 'true' : 'false');
-        res.set('Access-Control-Expose-Headers', 'x-is-admin'); // Importante para que el JS lo lea
+        res.set('Access-Control-Expose-Headers', 'x-is-admin'); 
         res.json(files);
     } catch (err) {
         res.status(500).json({ error: "Error en el radar" });
     }
 });
 
-// ELIMINACIÓN CORREGIDA
-app.delete('/api/files/:folder/:id', checkMantenimiento, async (req, res) => {
+// 3. ELIMINACIÓN CORREGIDA (Cualquiera puede borrar si no hay mantenimiento)
+app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     try {
-        // Reconstruimos el ID uniendo la carpeta y el nombre
         const publicId = `${req.params.folder}/${req.params.id}`;
-        console.log("Intentando borrar:", publicId);
-
-        // Intentamos borrar como imagen, si falla como raw (APK/Data), si falla como video
+        
+        // Intentos de borrado por tipo de recurso
         let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
         if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
         if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
@@ -95,18 +91,16 @@ app.delete('/api/files/:folder/:id', checkMantenimiento, async (req, res) => {
         if (result.result === 'ok') {
             res.json({ success: true });
         } else {
-            res.status(400).json({ error: "Cloudinary no encontró el archivo" });
+            res.status(400).json({ error: "No se encontró el archivo en Cloudinary" });
         }
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: "Error interno del servidor" });
     }
 });
 
-// 4. PANEL DE CONTROL SECRETO (Para activar/desactivar mantenimiento)
+// 4. CONTROL DE MANTENIMIENTO
 app.get('/api/admin/toggle-maint', (req, res) => {
-    const userToken = req.query.token;
-    if (userToken === ADMIN_TOKEN) {
+    if (req.query.token === ADMIN_TOKEN) {
         modoMantenimiento = !modoMantenimiento;
         res.send(`ESTADO MANTENIMIENTO: ${modoMantenimiento}`);
     } else {
@@ -119,4 +113,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Órbita activa`));
+app.listen(PORT, () => console.log(`🚀 Órbita corregida y activa`));

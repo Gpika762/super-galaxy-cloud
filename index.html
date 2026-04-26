@@ -31,12 +31,20 @@
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 25px; padding: 20px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.8);
+            position: relative; overflow: hidden;
         }
+
+        /* --- PANTALLA DE MANTENIMIENTO --- */
+        #maint-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
+        .maint-icon { font-size: 50px; margin-bottom: 15px; filter: drop-shadow(0 0 10px var(--error)); }
 
         h1 { text-align: center; font-weight: 200; letter-spacing: 4px; margin: 0 0 20px; font-size: 22px; text-shadow: 0 0 15px var(--aero-glow); }
         h1 span { font-weight: 800; color: var(--aero-blue); }
 
-        /* --- NUEVO: Indicador de Almacenamiento --- */
         .storage-card {
             background: rgba(0,0,0,0.3); border-radius: 15px;
             padding: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);
@@ -50,10 +58,10 @@
             border-radius: 20px; padding: 30px 10px; text-align: center;
             transition: 0.3s; cursor: pointer; margin-bottom: 20px;
         }
+        .upload-card.disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--error); }
         .upload-card span { font-size: 40px; display: block; filter: drop-shadow(0 0 10px var(--aero-blue)); }
 
         .file-list { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; }
-        
         .file-item {
             background: rgba(255,255,255,0.07); border-radius: 15px; padding: 12px;
             display: flex; align-items: center; justify-content: space-between;
@@ -66,25 +74,19 @@
         .file-meta { font-size: 10px; color: #888; }
 
         .actions { display: flex; gap: 8px; }
-        .btn-dl { 
-            background: var(--aero-blue); color: white; text-decoration: none;
-            padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold;
-        }
-        /* Botón Eliminar */
-        .btn-del {
-            background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3);
-            padding: 8px; border-radius: 8px; font-size: 10px; cursor: pointer;
-        }
-        .btn-del:active { background: var(--error); color: white; }
-
-        #progress-container { display: none; margin-top: 15px; }
-        .progress-bar { width: 100%; background: rgba(255,255,255,0.1); height: 5px; border-radius: 10px; overflow: hidden; }
-        .progress-fill { width: 0%; height: 100%; background: var(--aero-blue); }
+        .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold; }
+        .btn-del { display: none; background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3); padding: 8px; border-radius: 8px; font-size: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div id="maint-overlay">
+        <div class="maint-icon">🔧</div>
+        <h3 style="color:var(--error); margin:0;">MANTENIMIENTO</h3>
+        <p style="font-size:11px; color:#aaa; padding:10px;">La órbita está cerrada por reparaciones.<br>Inténtalo más tarde.</p>
+    </div>
+
     <h1>GALAXY CLOUD <span>PRO</span></h1>
 
     <div class="storage-card">
@@ -95,14 +97,14 @@
         <div class="storage-bar"><div class="storage-fill" id="storage-fill"></div></div>
     </div>
 
-    <div class="upload-card" onclick="document.getElementById('file-input').click()">
-        <span>🛸</span>
+    <div id="drop-zone" class="upload-card" onclick="triggerUpload()">
+        <span id="rocket-icon">🛸</span>
         <p id="status-main" style="margin: 10px 0 0; font-size: 12px; color: #ccc;">Lanzar archivo</p>
         <input type="file" id="file-input" style="display: none;">
         
-        <div id="progress-container">
+        <div id="progress-container" style="display:none; margin-top:15px;">
             <div id="status-percent" style="font-size: 10px; margin-bottom: 5px; color:#aaa;">Transfiriendo...</div>
-            <div class="progress-bar"><div class="progress-fill" id="bar"></div></div>
+            <div class="storage-bar"><div class="storage-fill" id="bar" style="width:0%"></div></div>
         </div>
     </div>
 
@@ -110,10 +112,12 @@
 </div>
 
 <script>
-    var fileInput = document.getElementById('file-input');
-    var fileListDiv = document.getElementById('file-list');
-    var storageFill = document.getElementById('storage-fill');
-    var storageTxt = document.getElementById('storage-txt');
+    var isMaint = false;
+    var isAdmin = false;
+
+    function triggerUpload() {
+        if(!isMaint) document.getElementById('file-input').click();
+    }
 
     function getIcon(name) {
         var ext = name.split('.').pop().toLowerCase();
@@ -127,66 +131,84 @@
     function cargarArchivos() {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', 'api/files', true);
+        
+        // Enviamos el token si existe (Para tu Notebook)
+        var token = localStorage.getItem('app_secure_key');
+        if(token) xhr.setRequestHeader('x-admin-auth', token);
+
         xhr.onload = function() {
             if (xhr.status === 200) {
                 var files = JSON.parse(xhr.responseText);
-                fileListDiv.innerHTML = '';
-                var totalBytes = 0;
-
-                if(files.length === 0) {
-                    fileListDiv.innerHTML = '<p style="text-align:center; color:#444; font-size:12px;">Órbita vacía.</p>';
-                }
-
-                for (var i = 0; i < files.length; i++) {
-                    var f = files[i];
-                    // Simulamos peso para el ejemplo de la barra (Cloudinary Free da 25GB)
-                    totalBytes += 1048576 * (Math.random() * 50); 
-                    
-                    fileListDiv.innerHTML += 
-                        '<div class="file-item">' +
-                            '<div class="file-info">' +
-                                '<span class="file-icon">' + getIcon(f.name) + '</span>' +
-                                '<div>' +
-                                    '<div class="file-name">' + f.name + '</div>' +
-                                    '<div class="file-meta">' + f.size + '</div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div class="actions">' +
-                                '<a href="' + f.url + '" class="btn-dl" target="_blank">Bajar</a>' +
-                                '<button class="btn-del" onclick="eliminar(\'' + f.id + '\')">X</button>' +
-                            '</div>' +
-                        '</div>';
-                }
-                actualizarEspacio(files.length);
+                isAdmin = xhr.getResponseHeader('x-is-admin') === 'true';
+                dibujarLista(files);
+            } else if (xhr.status === 503) {
+                activarMantenimiento();
             }
         };
         xhr.send();
     }
 
+    function activarMantenimiento() {
+        isMaint = true;
+        document.getElementById('maint-overlay').style.display = 'flex';
+        document.getElementById('drop-zone').classList.add('disabled');
+        document.getElementById('status-main').innerText = "Sistema bloqueado";
+        document.getElementById('rocket-icon').innerText = "🛠️";
+    }
+
+    function dibujarLista(files) {
+        var fileListDiv = document.getElementById('file-list');
+        fileListDiv.innerHTML = '';
+        var totalSize = 0;
+
+        if(files.length === 0) {
+            fileListDiv.innerHTML = '<p style="text-align:center; color:#444; font-size:12px;">Órbita vacía.</p>';
+        }
+
+        files.forEach(function(f) {
+            var btnDel = isAdmin ? '<button class="btn-del" style="display:block" onclick="eliminar(\'' + f.id + '\')">X</button>' : '';
+            fileListDiv.innerHTML += `
+                <div class="file-item">
+                    <div class="file-info">
+                        <span class="file-icon">${getIcon(f.name)}</span>
+                        <div>
+                            <div class="file-name">${f.name}</div>
+                            <div class="file-meta">${f.size}</div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <a href="${f.url}" class="btn-dl" target="_blank">Bajar</a>
+                        ${btnDel}
+                    </div>
+                </div>`;
+        });
+        actualizarEspacio(files.length);
+    }
+
     function eliminar(id) {
-        if(!confirm("¿Desintegrar archivo de la nube?")) return;
+        if(!confirm("¿Desintegrar archivo?")) return;
         var xhr = new XMLHttpRequest();
         xhr.open('DELETE', 'api/files/' + id, true);
+        var token = localStorage.getItem('app_secure_key');
+        if(token) xhr.setRequestHeader('x-admin-auth', token);
+        
         xhr.onload = function() {
-            if(xhr.status === 200) {
-                alert("Eliminado con éxito");
-                cargarArchivos();
-            }
+            if(xhr.status === 200) { cargarArchivos(); }
+            else { alert("No tienes permiso o error de red."); }
         };
         xhr.send();
     }
 
     function actualizarEspacio(numFiles) {
-        // Cálculo basado en cuota de Cloudinary (25GB aprox)
-        var porc = (numFiles * 1.2); // Estimación visual: cada archivo ocupa un %
+        var porc = (numFiles * 1.5); 
         if(porc > 100) porc = 100;
-        storageFill.style.width = porc + '%';
-        storageTxt.innerHTML = porc.toFixed(1) + '% / 25GB';
+        document.getElementById('storage-fill').style.width = porc + '%';
+        document.getElementById('storage-txt').innerHTML = porc.toFixed(1) + '% / 25GB';
     }
 
-    fileInput.onchange = function() {
-        var file = fileInput.files[0];
-        if(!file) return;
+    document.getElementById('file-input').onchange = function() {
+        var file = this.files[0];
+        if(!file || isMaint) return;
 
         var formData = new FormData();
         formData.append('archivo', file);
@@ -196,27 +218,24 @@
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', 'api/upload', true);
+        var token = localStorage.getItem('app_secure_key');
+        if(token) xhr.setRequestHeader('x-admin-auth', token);
 
         xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
                 var p = (e.loaded / e.total) * 100;
                 document.getElementById('bar').style.width = p + '%';
-                document.getElementById('status-percent').innerText = 'Transfiriendo: ' + Math.round(p) + '%';
+                document.getElementById('status-percent').innerText = 'Lanzando: ' + Math.round(p) + '%';
             }
         };
 
         xhr.onload = function() {
-            if (xhr.status === 200) {
-                alert("¡Subido!");
-                location.reload();
-            } else {
-                alert("Fallo en la conexión");
-            }
+            if (xhr.status === 200) { location.reload(); }
+            else { alert("Error al subir. ¿Está el sistema en mantenimiento?"); location.reload(); }
         };
         xhr.send(formData);
     };
 
-    cargarRadar = cargarArchivos; // Alias para compatibilidad
     cargarArchivos();
 </script>
 

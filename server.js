@@ -9,6 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.static(__dirname));
 
+// Configuración de la NASA (Cloudinary)
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
   api_key: process.env.API_KEY, 
@@ -20,13 +21,13 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'galaxy_cloud_uploads',
-    resource_type: 'auto'
+    resource_type: 'auto' // Detecta si es imagen, video o APK
   },
 });
 
 const upload = multer({ storage: storage });
 
-// RUTA DE SUBIDA
+// 1. RUTA DE SUBIDA
 app.post('/api/upload', upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
@@ -36,29 +37,49 @@ app.post('/api/upload', upload.single('archivo'), (req, res) => {
     }
 });
 
-// RUTA DE LISTADO
+// 2. RUTA DE LISTADO (Arreglada para ver TODOS los archivos)
 app.get('/api/files', async (req, res) => {
     try {
-        const result = await cloudinary.api.resources({
-            type: 'upload',
-            prefix: 'galaxy_cloud_uploads/',
-            max_results: 100 // Subimos a 100 archivos
-        });
+        // Usamos search para que encuentre imágenes, videos y archivos raw (APKs) al mismo tiempo
+        const result = await cloudinary.search
+            .expression('folder:galaxy_cloud_uploads')
+            .sort_by('created_at','desc')
+            .max_results(500)
+            .execute();
+
         const files = result.resources.map(f => ({
-            name: f.public_id.split('/').pop(),
+            id: f.public_id, // Necesario para borrar
+            name: f.filename + "." + f.format,
             size: (f.bytes / 1024 / 1024).toFixed(2) + " MB",
             url: f.secure_url
         }));
         res.json(files);
     } catch (err) {
-        res.status(500).json({ error: "Error en la nube" });
+        console.error(err);
+        res.status(500).json({ error: "Error en el radar orbital" });
     }
 });
 
-// REDIRECCIÓN ANTI-ERROR 404/500
+// 3. NUEVA RUTA: ELIMINAR ARCHIVOS (Para el botón X)
+app.delete('/api/files/:id', async (req, res) => {
+    try {
+        const publicId = req.params.id;
+        // Importante: Cloudinary necesita saber el tipo para borrar
+        // 'auto' no funciona igual en destroy, pero search nos da el resource_type
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'image' }); // Prueba con image
+        // Si no es imagen, intentamos como raw (para APKs)
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' }); 
+        
+        res.json({ success: true, message: "Desintegrado" });
+    } catch (err) {
+        res.status(500).json({ error: "No se pudo eliminar" });
+    }
+});
+
+// REDIRECCIÓN ANTI-ERROR
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Órbita activa`));
+app.listen(PORT, () => console.log(`🚀 Órbita activa en puerto ${PORT}`));

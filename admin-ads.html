@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ads Manager | Galaxy Cloud</title>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        
+        .admin-card {
+            background: rgba(0, 148, 255, 0.05);
+            border: 2px solid #0094ff;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 148, 255, 0.2);
+        }
+
+        h2 { color: #0094ff; text-align: center; margin-top: 0; }
+        
+        label { display: block; margin-top: 15px; font-size: 12px; color: #888; }
+        
+        input[type="text"], input[type="file"] {
+            width: 100%; padding: 10px; margin-top: 5px;
+            background: #111; border: 1px solid #333; color: #fff;
+            border-radius: 5px; box-sizing: border-box;
+        }
+
+        .btn-update {
+            background: #0094ff; color: white; border: none; width: 100%;
+            padding: 15px; border-radius: 8px; font-weight: bold;
+            margin-top: 20px; cursor: pointer;
+        }
+
+        .preview-box {
+            margin-top: 20px; border: 1px dashed #444; padding: 10px;
+            text-align: center; font-size: 12px; color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-card">
+        <h2>ADS MANAGER</h2>
+        
+        <label>TEXTO DEL ANUNCIO (Ej: ¡Juega Rat Football!)</label>
+        <input type="text" id="adText" placeholder="Escribe el mensaje aquí...">
+
+        <label>URL DE LA IMAGEN / BANNER</label>
+        <input type="text" id="adImgUrl" placeholder="https://link-de-la-imagen.jpg">
+
+        <label>LINK DE DESTINO (Opcional)</label>
+        <input type="text" id="adLink" placeholder="https://tu-juego.com">
+
+        <button class="btn-update" onclick="actualizarPublicidad()">ACTUALIZAR PUBLICIDAD</button>
+        
+        <div class="preview-box" id="preview">
+            Vista previa aparecerá aquí...
+        </div>
+    </div>
+
+<script>
+    var apiBase = "https://super-galaxy-cloud.onrender.com";
+
+    function actualizarPublicidad() {
+        var data = {
+            text: document.getElementById('adText').value,
+            img: document.getElementById('adImgUrl').value,
+            link: document.getElementById('adLink').value
+        };
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", apiBase + "/api/ads/update", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        // Usamos tu token de seguridad
+        xhr.setRequestHeader("x-admin-auth", "DELTARUNEGOD");
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                alert("¡Publicidad actualizada en todos los Galaxy!");
+                document.getElementById('preview').innerHTML = "<b>Cargado:</b> " + data.text;
+            } else {
+                alert("Error: Verifica el token o el servidor.");
+            }
+        };
+
+        xhr.send(JSON.stringify(data));
+    }
+</script>
+</body>
+</html>

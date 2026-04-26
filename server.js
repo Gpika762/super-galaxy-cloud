@@ -5,6 +5,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cors = require('cors');
 const path = require('path');
 
+
 const app = express();
 app.use(cors());
 app.use(express.static(__dirname));
@@ -14,6 +15,7 @@ const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY;
 let modoMantenimiento = false; 
 let tiempoMantenimiento = null; // Almacena el fin del temporizador
 let ultimoDispositivo = "Ninguno detectado"; // Para el Hardware Log
+let currentAd = { text: "¡Bienvenidos a Galaxy Cloud!", img: "", link: "#" };
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
@@ -98,6 +100,20 @@ app.get('/api/files', checkStatus, async (req, res) => {
         res.json(files);
     } catch (err) {
         res.status(500).json({ error: "Error en el radar" });
+    }
+});
+// Para que el celu.html lea la publi
+app.get('/api/ads', (req, res) => {
+    res.json(currentAd);
+});
+
+// Para que el admin-ads.html guarde la publi
+app.post('/api/ads/update', (req, res) => {
+    if (req.headers['x-admin-auth'] === 'DELTARUNEGOD') {
+        currentAd = req.body;
+        res.send("OK");
+    } else {
+        res.status(401).send("No autorizado");
     }
 });
 

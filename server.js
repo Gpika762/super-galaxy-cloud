@@ -9,20 +9,12 @@ const app = express();
 app.use(cors());
 app.use(express.static(__dirname));
 
-// --- VERIFICACIÓN ACTIVA DE VARIABLES ---
-const cloudConfig = {
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
+cloudinary.config({ 
+  cloud_name: process.env.CLOUD_NAME, 
+  api_key: process.env.API_KEY, 
   api_secret: process.env.API_SECRET,
-  secure: true
-};
-
-// Si falta alguna, el servidor te avisará en los Logs de Render
-if (!cloudConfig.cloud_name || !cloudConfig.api_key || !cloudConfig.api_secret) {
-    console.error("❌ ERROR CRÍTICO: Faltan variables de entorno en Render.");
-}
-
-cloudinary.config(cloudConfig);
+  secure: true 
+});
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -34,25 +26,23 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// API DE SUBIDA CON REPORTE DETALLADO
+// RUTA DE SUBIDA
 app.post('/api/upload', upload.single('archivo'), (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ error: "El servidor no recibió ningún archivo." });
-        console.log("✅ Éxito:", req.file.path);
-        res.json({ success: true, url: req.file.path });
+        if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
+        res.status(200).json({ success: true, url: req.file.path });
     } catch (err) {
-        console.error("🔥 Error interno:", err);
-        res.status(500).json({ error: "Fallo en Cloudinary: " + err.message });
+        res.status(500).json({ error: err.message });
     }
 });
 
-// API DE LISTADO
+// RUTA DE LISTADO
 app.get('/api/files', async (req, res) => {
     try {
         const result = await cloudinary.api.resources({
             type: 'upload',
             prefix: 'galaxy_cloud_uploads/',
-            max_results: 50
+            max_results: 100 // Subimos a 100 archivos
         });
         const files = result.resources.map(f => ({
             name: f.public_id.split('/').pop(),
@@ -61,14 +51,14 @@ app.get('/api/files', async (req, res) => {
         }));
         res.json(files);
     } catch (err) {
-        res.status(500).json({ error: "Error de conexión con la nube: " + err.message });
+        res.status(500).json({ error: "Error en la nube" });
     }
 });
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+// REDIRECCIÓN ANTI-ERROR 404/500
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 SERVIDOR ACTIVO EN PUERTO ${PORT}`);
-    console.log(`☁️ CLOUD NAME CONFIGURADO: ${process.env.CLOUD_NAME || 'VACÍO'}`);
-});
+app.listen(PORT, () => console.log(`🚀 Órbita activa`));

@@ -9,7 +9,9 @@ const app = express();
 app.use(cors());
 app.use(express.static(__dirname));
 
-// --- CONFIGURACIÓN ---
+// Memoria temporal para forzar el registro si Cloudinary tarda
+let registrosTemporales = [];
+
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
     api_key: process.env.API_KEY,
@@ -25,77 +27,53 @@ const storage = new CloudinaryStorage({
     },
 });
 
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 20 * 1024 * 1024 } // Límite de 20MB para evitar que Render se cuelgue
-});
+const upload = multer({ storage: storage });
 
 // API DE SUBIDA
-app.post('/api/upload', (req, res) => {
-    upload.single('archivo')(req, res, function (err) {
-        if (err instanceof multer.MulterError) {
-            // Error de Multer (ej: archivo demasiado grande)
-            return res.status(400).json({ error: "Archivo demasiado pesado (Máx 20MB)" });
-        } else if (err) {
-            // Error de Cloudinary o de red
-            return res.status(500).json({ error: "Error en la nube: " + err.message });
-        }
+app.post('/api/upload', upload.single('archivo'), (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: "No llegó nada" });
 
-        if (!req.file) return res.status(400).json({ error: "No se recibió ningún archivo" });
+        // GUARDAMOS EN MEMORIA AL INSTANTE
+        const nuevoArchivo = {
+            name: req.file.originalname,
+            size: (req.file.size / 1024 / 1024).toFixed(2) + " MB",
+            url: req.file.path
+        };
+        registrosTemporales.unshift(nuevoArchivo); // Lo pone de primero
 
-        console.log("✅ Subido a Cloudinary:", req.file.path);
         res.json({ success: true, url: req.file.path });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// API DE LISTADO (EL ARREGLO DEFINITIVO)
+// API DE LISTADO (COMBINADA)
 app.get('/api/files', async (req, res) => {
     try {
-        // Búsqueda avanzada: Ignora el caché y trae archivos recién subidos
         const result = await cloudinary.search
             .expression('folder:galaxy_cloud_uploads')
             .sort_by('created_at','desc')
-            .max_results(100)
             .execute();
 
-        const files = result.resources.map(f => ({
-            // Mantiene la extensión si Cloudinary la detecta
+        const cloudFiles = result.resources.map(f => ({
             name: f.public_id.split('/').pop() + (f.format ? '.' + f.format : ''),
             size: (f.bytes / 1024 / 1024).toFixed(2) + " MB",
             url: f.secure_url
         }));
-        
-        console.log(`📂 Se encontraron ${files.length} archivos.`);
-        res.json(files);
 
+        // Juntamos lo de la memoria con lo de la nube y quitamos duplicados
+        const listaFinal = [...registrosTemporales, ...cloudFiles];
+        const unicos = listaFinal.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
+
+        res.json(unicos);
     } catch (err) {
-        console.error("🔥 Error listando con Search API:", err);
-        
-        // SISTEMA DE EMERGENCIA: Si Search API falla, usamos el método Admin API
-        try {
-            const resFallback = await cloudinary.api.resources({
-                type: 'upload',
-                prefix: 'galaxy_cloud_uploads/',
-                max_results: 100
-            });
-            const filesFallback = resFallback.resources.map(f => ({
-                name: f.public_id.split('/').pop(),
-                size: (f.bytes / 1024 / 1024).toFixed(2) + " MB",
-                url: f.secure_url
-            }));
-            res.json(filesFallback);
-        } catch (e) {
-            console.error("🔥 Fallo total de Cloudinary:", e);
-            res.json([]); 
-        }
+        // Si la nube falla, al menos mostramos lo que se subió en esta sesión
+        res.json(registrosTemporales);
     }
 });
 
-// Ruta principal
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`🚀 Galaxy Server listo en puerto ${PORT}`);
-    console.log(`📡 Radar apuntando a la carpeta: galaxy_cloud_uploads`);
-});
+app.listen(PORT, () => console.log(`🚀 Galaxy Pro con Memoria Activa`));

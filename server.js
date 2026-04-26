@@ -61,18 +61,34 @@ app.get('/api/files', async (req, res) => {
 });
 
 // 3. NUEVA RUTA: ELIMINAR ARCHIVOS (Para el botón X)
-app.delete('/api/files/:id', async (req, res) => {
+// NUEVA RUTA DE ELIMINACIÓN REFORZADA
+app.delete('/api/files/:folder/:id', async (req, res) => {
     try {
-        const publicId = req.params.id;
-        // Importante: Cloudinary necesita saber el tipo para borrar
-        // 'auto' no funciona igual en destroy, pero search nos da el resource_type
-        await cloudinary.uploader.destroy(publicId, { resource_type: 'image' }); // Prueba con image
-        // Si no es imagen, intentamos como raw (para APKs)
-        await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' }); 
+        // Unimos la carpeta y el ID para tener el Public ID completo
+        const publicId = `${req.params.folder}/${req.params.id}`;
+        console.log("Intentando desintegrar:", publicId);
+
+        // Intentamos borrarlo como imagen/video (tipo upload)
+        let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
         
-        res.json({ success: true, message: "Desintegrado" });
+        // Si no funcionó (porque es una APK o archivo raro), intentamos como 'raw'
+        if (result.result !== 'ok') {
+            result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        }
+        
+        // Si tampoco, intentamos como 'video'
+        if (result.result !== 'ok') {
+            result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+        }
+
+        if (result.result === 'ok') {
+            res.json({ success: true, message: "Archivo eliminado de la órbita" });
+        } else {
+            res.status(400).json({ error: "Cloudinary no encontró el archivo", detalle: result });
+        }
     } catch (err) {
-        res.status(500).json({ error: "No se pudo eliminar" });
+        console.error("Fallo en el borrado:", err);
+        res.status(500).json({ error: "Error interno en el radar" });
     }
 });
 

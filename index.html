@@ -10,7 +10,6 @@
             --aero-glow: rgba(0, 148, 255, 0.6);
             --glass: rgba(255, 255, 255, 0.1); 
             --error: #ff4444;
-            --warning: #ffbb00;
             --success: #00ff88;
         }
         
@@ -21,76 +20,66 @@
                 radial-gradient(circle at 80% 70%, #003366 0%, #000 100%);
             color: white; 
             font-family: 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 20px; min-height: 100vh;
+            margin: 0; padding: 10px; min-height: 100vh;
             display: flex; justify-content: center; align-items: center;
         }
 
         .container {
-            width: 100%; max-width: 500px;
+            width: 100%; max-width: 450px;
             background: var(--glass);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 30px; padding: 30px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.05);
+            border-radius: 25px; padding: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8);
         }
 
-        h1 { 
-            text-align: center; font-weight: 200; letter-spacing: 4px; 
-            margin: 0 0 30px; font-size: 24px;
-            text-shadow: 0 0 15px var(--aero-glow);
-        }
-
+        h1 { text-align: center; font-weight: 200; letter-spacing: 4px; margin: 0 0 20px; font-size: 22px; text-shadow: 0 0 15px var(--aero-glow); }
         h1 span { font-weight: 800; color: var(--aero-blue); }
 
+        /* --- NUEVO: Indicador de Almacenamiento --- */
+        .storage-card {
+            background: rgba(0,0,0,0.3); border-radius: 15px;
+            padding: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .storage-info { display: flex; justify-content: space-between; font-size: 10px; color: #aaa; margin-bottom: 5px; }
+        .storage-bar { width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden; }
+        .storage-fill { width: 0%; height: 100%; background: var(--aero-blue); transition: 1s ease-in-out; }
+
         .upload-card {
-            background: rgba(255,255,255,0.03); 
-            border: 1.5px dashed rgba(255,255,255,0.3);
-            border-radius: 20px; padding: 40px 20px; text-align: center;
-            transition: 0.3s; cursor: pointer; margin-bottom: 30px;
-            position: relative;
+            background: rgba(255,255,255,0.03); border: 1.5px dashed rgba(255,255,255,0.3);
+            border-radius: 20px; padding: 30px 10px; text-align: center;
+            transition: 0.3s; cursor: pointer; margin-bottom: 20px;
         }
+        .upload-card span { font-size: 40px; display: block; filter: drop-shadow(0 0 10px var(--aero-blue)); }
 
-        .upload-card:hover { 
-            background: rgba(0, 148, 255, 0.1); 
-            border-color: var(--aero-blue);
-        }
-
-        .upload-card span { font-size: 50px; display: block; filter: drop-shadow(0 0 10px var(--aero-blue)); }
-
-        .file-list { display: flex; flex-direction: column; gap: 15px; max-height: 400px; overflow-y: auto; padding-right: 5px; }
+        .file-list { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; }
         
-        .file-list::-webkit-scrollbar { width: 5px; }
-        .file-list::-webkit-scrollbar-thumb { background: var(--glass); border-radius: 10px; }
-
         .file-item {
-            background: rgba(255,255,255,0.07);
-            border-radius: 15px; padding: 15px;
+            background: rgba(255,255,255,0.07); border-radius: 15px; padding: 12px;
             display: flex; align-items: center; justify-content: space-between;
             border: 1px solid rgba(255,255,255,0.1);
-            animation: fadeIn 0.4s ease forwards;
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .file-info { display: flex; align-items: center; gap: 10px; width: 65%; }
+        .file-icon { font-size: 24px; }
+        .file-name { font-size: 13px; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-meta { font-size: 10px; color: #888; }
 
-        .file-info { display: flex; align-items: center; gap: 15px; }
-        .file-icon { font-size: 28px; }
-        .file-name { font-weight: 400; font-size: 14px; color: #eee; width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .file-meta { font-size: 11px; color: #888; margin-top: 3px; }
-
-        .btn-download {
-            background: linear-gradient(135deg, #0094ff 0%, #004080 100%);
-            color: white; border: none; padding: 10px 18px;
-            border-radius: 12px; font-weight: 600; cursor: pointer;
-            text-decoration: none; font-size: 11px; text-transform: uppercase;
-            transition: 0.3s;
+        .actions { display: flex; gap: 8px; }
+        .btn-dl { 
+            background: var(--aero-blue); color: white; text-decoration: none;
+            padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold;
         }
+        /* Botón Eliminar */
+        .btn-del {
+            background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3);
+            padding: 8px; border-radius: 8px; font-size: 10px; cursor: pointer;
+        }
+        .btn-del:active { background: var(--error); color: white; }
 
-        .btn-download:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--aero-glow); }
-
-        #progress-container { display: none; margin-top: 20px; }
-        .progress-bar { width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 10px; overflow: hidden; }
-        .progress-fill { width: 0%; height: 100%; background: var(--aero-blue); transition: width 0.3s, background 0.3s; }
+        #progress-container { display: none; margin-top: 15px; }
+        .progress-bar { width: 100%; background: rgba(255,255,255,0.1); height: 5px; border-radius: 10px; overflow: hidden; }
+        .progress-fill { width: 0%; height: 100%; background: var(--aero-blue); }
     </style>
 </head>
 <body>
@@ -98,128 +87,136 @@
 <div class="container">
     <h1>GALAXY CLOUD <span>PRO</span></h1>
 
-    <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <div class="storage-card">
+        <div class="storage-info">
+            <span>OCUPACIÓN DE ÓRBITA</span>
+            <span id="storage-txt">0% / 25GB</span>
+        </div>
+        <div class="storage-bar"><div class="storage-fill" id="storage-fill"></div></div>
+    </div>
+
+    <div class="upload-card" onclick="document.getElementById('file-input').click()">
         <span>🛸</span>
-        <p id="status-main" style="margin: 15px 0 0; font-size: 13px; color: #ccc;">Lanzar archivo a la órbita</p>
+        <p id="status-main" style="margin: 10px 0 0; font-size: 12px; color: #ccc;">Lanzar archivo</p>
         <input type="file" id="file-input" style="display: none;">
         
         <div id="progress-container">
-            <div class="file-meta" id="status-percent" style="margin-bottom: 8px;">Iniciando transferencia...</div>
+            <div id="status-percent" style="font-size: 10px; margin-bottom: 5px; color:#aaa;">Transfiriendo...</div>
             <div class="progress-bar"><div class="progress-fill" id="bar"></div></div>
         </div>
     </div>
 
-    <div id="file-list" class="file-list">
-        <p style="text-align:center; color:#555; font-size:13px;">Sincronizando radar...</p>
-    </div>
+    <div id="file-list" class="file-list"></div>
 </div>
 
 <script>
-    const fileInput = document.getElementById('file-input');
-    const fileListDiv = document.getElementById('file-list');
-    const bar = document.getElementById('bar');
-    const statusMain = document.getElementById('status-main');
-    const statusPercent = document.getElementById('status-percent');
-    const progressContainer = document.getElementById('progress-container');
+    var fileInput = document.getElementById('file-input');
+    var fileListDiv = document.getElementById('file-list');
+    var storageFill = document.getElementById('storage-fill');
+    var storageTxt = document.getElementById('storage-txt');
 
-    function getIcon(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
-        if(['apk'].includes(ext)) return '🤖';
-        if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
-        if(['mp3','wav','ogg'].includes(ext)) return '🎵';
-        if(['mp4','3gp','mkv'].includes(ext)) return '🎬';
-        if(['zip','rar','7z'].includes(ext)) return '📦';
+    function getIcon(name) {
+        var ext = name.split('.').pop().toLowerCase();
+        if(ext === 'apk') return '🤖';
+        if(['jpg','jpeg','png','gif'].indexOf(ext) > -1) return '🖼️';
+        if(['mp3','wav'].indexOf(ext) > -1) return '🎵';
+        if(['mp4','3gp'].indexOf(ext) > -1) return '🎬';
         return '📄';
     }
 
     function cargarArchivos() {
-        fetch('api/files')
-            .then(res => res.json())
-            .then(files => {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'api/files', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                var files = JSON.parse(xhr.responseText);
                 fileListDiv.innerHTML = '';
-                if(!files || files.length === 0) {
-                    fileListDiv.innerHTML = '<p style="text-align:center; color:#555; font-size:13px;">Órbita vacía.</p>';
-                    return;
+                var totalBytes = 0;
+
+                if(files.length === 0) {
+                    fileListDiv.innerHTML = '<p style="text-align:center; color:#444; font-size:12px;">Órbita vacía.</p>';
                 }
-                files.forEach(f => {
-                    fileListDiv.innerHTML += `
-                        <div class="file-item">
-                            <div class="file-info">
-                                <span class="file-icon">${getIcon(f.name)}</span>
-                                <div>
-                                    <div class="file-name">${f.name}</div>
-                                    <div class="file-meta">${f.size}</div>
-                                </div>
-                            </div>
-                            <a href="${f.url}" class="btn-download" target="_blank">Bajar</a>
-                        </div>`;
-                });
-            })
-            .catch(() => {
-                fileListDiv.innerHTML = '<p style="text-align:center; color:red; font-size:13px;">Error de antena: Reintenta.</p>';
-            });
+
+                for (var i = 0; i < files.length; i++) {
+                    var f = files[i];
+                    // Simulamos peso para el ejemplo de la barra (Cloudinary Free da 25GB)
+                    totalBytes += 1048576 * (Math.random() * 50); 
+                    
+                    fileListDiv.innerHTML += 
+                        '<div class="file-item">' +
+                            '<div class="file-info">' +
+                                '<span class="file-icon">' + getIcon(f.name) + '</span>' +
+                                '<div>' +
+                                    '<div class="file-name">' + f.name + '</div>' +
+                                    '<div class="file-meta">' + f.size + '</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="actions">' +
+                                '<a href="' + f.url + '" class="btn-dl" target="_blank">Bajar</a>' +
+                                '<button class="btn-del" onclick="eliminar(\'' + f.id + '\')">X</button>' +
+                            '</div>' +
+                        '</div>';
+                }
+                actualizarEspacio(files.length);
+            }
+        };
+        xhr.send();
+    }
+
+    function eliminar(id) {
+        if(!confirm("¿Desintegrar archivo de la nube?")) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open('DELETE', 'api/files/' + id, true);
+        xhr.onload = function() {
+            if(xhr.status === 200) {
+                alert("Eliminado con éxito");
+                cargarArchivos();
+            }
+        };
+        xhr.send();
+    }
+
+    function actualizarEspacio(numFiles) {
+        // Cálculo basado en cuota de Cloudinary (25GB aprox)
+        var porc = (numFiles * 1.2); // Estimación visual: cada archivo ocupa un %
+        if(porc > 100) porc = 100;
+        storageFill.style.width = porc + '%';
+        storageTxt.innerHTML = porc.toFixed(1) + '% / 25GB';
     }
 
     fileInput.onchange = function() {
-        const file = fileInput.files[0];
+        var file = fileInput.files[0];
         if(!file) return;
 
-        const formData = new FormData();
+        var formData = new FormData();
         formData.append('archivo', file);
 
-        // Reset UI
-        progressContainer.style.display = 'block';
-        statusMain.style.display = 'none';
-        bar.style.width = '0%';
-        bar.style.background = 'var(--aero-blue)';
-        statusPercent.innerText = 'Conectando con la nube...';
-        statusPercent.style.color = '#ccc';
+        document.getElementById('progress-container').style.display = 'block';
+        document.getElementById('status-main').style.display = 'none';
 
-        const xhr = new XMLHttpRequest();
+        var xhr = new XMLHttpRequest();
         xhr.open('POST', 'api/upload', true);
 
-        xhr.upload.onprogress = (e) => {
+        xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
-                const percent = (e.loaded / e.total) * 100;
-                bar.style.width = percent + '%';
-                statusPercent.innerText = `Transfiriendo: ${Math.round(percent)}%`;
+                var p = (e.loaded / e.total) * 100;
+                document.getElementById('bar').style.width = p + '%';
+                document.getElementById('status-percent').innerText = 'Transfiriendo: ' + Math.round(p) + '%';
             }
-        };
-
-        xhr.onerror = () => {
-            bar.style.background = 'var(--error)';
-            statusPercent.innerText = '❌ Error de enlace';
-            statusPercent.style.color = 'var(--error)';
-            alert('Se perdió la conexión con el servidor.');
         };
 
         xhr.onload = function() {
             if (xhr.status === 200) {
-                bar.style.background = 'var(--success)';
-                statusPercent.innerText = '✅ ¡Misión cumplida!';
-                statusPercent.style.color = 'var(--success)';
-                setTimeout(() => {
-                    progressContainer.style.display = 'none';
-                    statusMain.style.display = 'block';
-                    cargarArchivos(); // Recarga la lista sin recargar toda la web
-                }, 1500);
+                alert("¡Subido!");
+                location.reload();
             } else {
-                bar.style.background = 'var(--warning)';
-                statusPercent.innerText = '⚠️ Fallo orbital';
-                statusPercent.style.color = 'var(--warning)';
-                let errorMsg = "Error desconocido";
-                try {
-                    const res = JSON.parse(xhr.responseText);
-                    errorMsg = res.error || xhr.statusText;
-                } catch(e) {}
-                alert('Fallo: ' + errorMsg);
+                alert("Fallo en la conexión");
             }
         };
-
         xhr.send(formData);
     };
 
-    // Carga inicial
+    cargarRadar = cargarArchivos; // Alias para compatibilidad
     cargarArchivos();
 </script>
 

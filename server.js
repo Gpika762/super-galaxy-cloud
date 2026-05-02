@@ -104,52 +104,63 @@ app.get('/api/files', checkStatus, async (req, res) => {
 });
 
 // --- NUEVAS FUNCIONES: PREVIEW, QR Y DESCARGA ---
-
-// 5. GENERADOR DE QR (Para compartir archivos)
-app.get('/api/share/qr/:folder/:id', checkStatus, (req, res) => {
+// 5. GENERADOR DE QR
+app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
+        // Obtenemos la URL del archivo original
         const fileUrl = cloudinary.url(publicId, { secure: true });
-        // Usamos Google Charts API para generar el QR
+        
+        // QR via Google Charts
         const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(fileUrl)}`;
+        
+        // Aquí SÍ enviamos JSON porque el frontend necesita la URL para armar el modal
         res.json({ qr_url: qrUrl, original_url: fileUrl });
     } catch (err) {
-        res.status(500).json({ error: "No se pudo generar el QR" });
+        res.status(500).json({ error: "Error en el radar QR" });
     }
 });
 
-// 6. PRE-VISUALIZADOR (Thumbnail optimizado para S2/S4)
+// 6. PRE-VISUALIZADOR (Corregido para etiquetas <img>)
 app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
-        // Genera una miniatura de 250px optimizada automáticamente
+        
         const thumbUrl = cloudinary.url(publicId, {
             width: 250,
             height: 250,
             crop: "fill",
+            gravity: "auto",
             quality: "auto",
-            fetch_format: "auto",
+            fetch_format: "auto", // Esto ayuda mucho al S2/S4 enviando WebP si lo soporta
             secure: true
         });
-        res.json({ thumbnail: thumbUrl });
+
+        // CAMBIO CLAVE: En lugar de res.json, usamos res.redirect
+        // Así el <img src="/api/preview/..."> recibe la imagen real
+        res.redirect(thumbUrl);
     } catch (err) {
-        res.status(500).json({ error: "Error al generar vista previa" });
+        res.status(404).send("No se pudo generar miniatura");
     }
 });
 
-// 7. DESCARGA FORZADA (Evita que el navegador del móvil abra el archivo en lugar de bajarlo)
+// 7. DESCARGA FORZADA
 app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
+        
+        // Agregamos flags: "attachment" para forzar la descarga en Android antiguo
         const downloadUrl = cloudinary.url(publicId, { 
             flags: "attachment", 
             secure: true 
         });
+        
         res.redirect(downloadUrl);
     } catch (err) {
-        res.status(500).json({ error: "Error al procesar descarga" });
+        res.status(500).send("Error al descargar");
     }
 });
+
 
 // --- FIN NUEVAS FUNCIONES ---
 

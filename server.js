@@ -5,9 +5,9 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cors = require('cors');
 const path = require('path');
 
-
 const app = express();
 app.use(cors());
+app.use(express.json()); // Necesario para procesar el body de los anuncios
 app.use(express.static(__dirname));
 
 // --- CONFIGURACIÓN ---
@@ -88,10 +88,10 @@ app.get('/api/files', checkStatus, async (req, res) => {
             id: f.public_id,
             name: f.filename + "." + f.format,
             size: (f.bytes / 1024 / 1024).toFixed(2) + " MB",
-            url: f.secure_url
+            url: f.secure_url,
+            folder: f.folder
         }));
 
-        // Cabeceras con info para el Panel Admin
         res.set('x-is-admin', req.isBoss ? 'true' : 'false');
         res.set('x-maint-status', modoMantenimiento ? 'true' : 'false');
         res.set('x-last-device', encodeURIComponent(ultimoDispositivo));
@@ -102,12 +102,61 @@ app.get('/api/files', checkStatus, async (req, res) => {
         res.status(500).json({ error: "Error en el radar" });
     }
 });
-// Para que el celu.html lea la publi
+
+// --- NUEVAS FUNCIONES: PREVIEW, QR Y DESCARGA ---
+
+// 5. GENERADOR DE QR (Para compartir archivos)
+app.get('/api/share/qr/:folder/:id', checkStatus, (req, res) => {
+    try {
+        const publicId = `${req.params.folder}/${req.params.id}`;
+        const fileUrl = cloudinary.url(publicId, { secure: true });
+        // Usamos Google Charts API para generar el QR
+        const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(fileUrl)}`;
+        res.json({ qr_url: qrUrl, original_url: fileUrl });
+    } catch (err) {
+        res.status(500).json({ error: "No se pudo generar el QR" });
+    }
+});
+
+// 6. PRE-VISUALIZADOR (Thumbnail optimizado para S2/S4)
+app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
+    try {
+        const publicId = `${req.params.folder}/${req.params.id}`;
+        // Genera una miniatura de 250px optimizada automáticamente
+        const thumbUrl = cloudinary.url(publicId, {
+            width: 250,
+            height: 250,
+            crop: "fill",
+            quality: "auto",
+            fetch_format: "auto",
+            secure: true
+        });
+        res.json({ thumbnail: thumbUrl });
+    } catch (err) {
+        res.status(500).json({ error: "Error al generar vista previa" });
+    }
+});
+
+// 7. DESCARGA FORZADA (Evita que el navegador del móvil abra el archivo en lugar de bajarlo)
+app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
+    try {
+        const publicId = `${req.params.folder}/${req.params.id}`;
+        const downloadUrl = cloudinary.url(publicId, { 
+            flags: "attachment", 
+            secure: true 
+        });
+        res.redirect(downloadUrl);
+    } catch (err) {
+        res.status(500).json({ error: "Error al procesar descarga" });
+    }
+});
+
+// --- FIN NUEVAS FUNCIONES ---
+
 app.get('/api/ads', (req, res) => {
     res.json(currentAd);
 });
 
-// Para que el admin-ads.html guarde la publi
 app.post('/api/ads/update', (req, res) => {
     if (req.headers['x-admin-auth'] === 'DELTARUNEGOD') {
         currentAd = req.body;
@@ -117,7 +166,6 @@ app.post('/api/ads/update', (req, res) => {
     }
 });
 
-// 3. ELIMINACIÓN
 app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -135,7 +183,6 @@ app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
-// 4. CONTROL DE MANTENIMIENTO AVANZADO (Switch + Temporizador)
 app.get('/api/admin/control', (req, res) => {
     if (req.query.token !== ADMIN_TOKEN) return res.status(401).send("Token inválido");
     
@@ -159,7 +206,6 @@ app.get('/api/admin/control', (req, res) => {
     });
 });
 
-// Ruta antigua por compatibilidad
 app.get('/api/admin/toggle-maint', (req, res) => {
     if (req.query.token === ADMIN_TOKEN) {
         modoMantenimiento = !modoMantenimiento;

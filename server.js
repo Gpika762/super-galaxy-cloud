@@ -105,6 +105,7 @@ app.get('/api/files', checkStatus, async (req, res) => {
 
 // --- NUEVAS FUNCIONES: PREVIEW, QR Y DESCARGA ---
 // 5. GENERADOR DE QR
+// 5. GENERADOR DE QR
 app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -160,7 +161,6 @@ app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
         res.status(500).send("Error al descargar");
     }
 });
-
 
 // --- FIN NUEVAS FUNCIONES ---
 

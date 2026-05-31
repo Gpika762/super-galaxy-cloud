@@ -21,7 +21,7 @@ let currentAd = { text: "¡Bienvenidos a Galaxy Cloud Familiar!", img: "", link:
 // BASE DE DATOS LOCAL PARA LA FAMILIA (Rápido, limpio y seguro)
 const CONTRASEÑAS_FAMILIA = {
     "admin": ADMIN_TOKEN,                 // Tú con superpoderes
-    "familia": process.env.FAMILY_KEY || "GalaxyFamily2026", // Contraseña común para tu familia
+    "familia": process.env.FAMILY_KEY || "DELTAGOD", // Contraseña común para tu familia
 };
 
 cloudinary.config({ 

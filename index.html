@@ -82,10 +82,47 @@
         .file-name { font-size: 13px; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .actions { display: flex; gap: 8px; }
         .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold; }
-        .btn-del { background: rgba(255, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(255, 68, 68, 0.3); padding: 8px 12px; border-radius: 8px; font-size: 10px; cursor: pointer; border: none; }
+        .btn-del { background: rgba(255, 68, 68, 0.2); color: var(--error); padding: 8px 12px; border-radius: 8px; font-size: 10px; cursor: pointer; border: none; }
+        
+        /* --- ESTILO DE BLOQUEO GALAXY --- */
+        #galaxy-lockscreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            background-image: 
+                radial-gradient(circle at 50% 30%, #001a33 0%, transparent 50%),
+                radial-gradient(circle at 50% 70%, #002244 0%, #000 100%);
+            z-index: 99999; display: flex; justify-content: center; align-items: center;
+        }
+        .lock-box {
+            width: 100%; max-width: 320px; background: var(--glass);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 25px;
+            padding: 30px 20px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        }
     </style>
 </head>
 <body>
+
+<div id="galaxy-lockscreen">
+    <div class="lock-box">
+        <h2 style="margin: 0 0 5px; font-weight: 200; letter-spacing: 3px; text-shadow: 0 0 15px var(--aero-glow);">GALAXY<span>CLOUD</span></h2>
+        <p style="font-size: 12px; color: #888; margin: 0 0 25px;">Acceso seguro para la familia</p>
+        
+        <input type="password" id="family-pass-input" placeholder="Clave de Órbita" style="
+            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4);
+            color: white; text-align: center; font-size: 15px; box-sizing: border-box; outline: none;">
+            
+        <button onclick="intentarLogin()" style="
+            width: 100%; padding: 12px; background: var(--aero-blue); color: white;
+            border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 15px var(--aero-glow); transition: 0.2s;">
+            Desbloquear Sistema
+        </button>
+        
+        <p id="lock-error" style="color: var(--error); font-size: 12px; margin-top: 12px; display: none;">⚠️ Clave incorrecta</p>
+    </div>
+</div>
 
 <div class="container">
     <div id="admin-panel">
@@ -140,12 +177,75 @@
 
 <script>
     const API = "/api";
-    // Si no tienes el token en localStorage, usa el predeterminado para pruebas
-    const TOKEN = localStorage.getItem('admin_token') || "DELTARUNEGOD"; 
+    
+    // Obtener dinámicamente el token guardado en la sesión del navegador
+    function obtenerToken() {
+        return localStorage.getItem('galaxy_family_token') || "";
+    }
+
+    // Comprobar la sesión apenas carga la interfaz
+    async function verificarSesion() {
+        const tokenActual = obtenerToken();
+        if (!tokenActual) {
+            document.getElementById("galaxy-lockscreen").style.display = "flex";
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': tokenActual } });
+            if (res.status === 401) {
+                // Si el token guardado caducó o es inválido, borramos y forzamos bloqueo
+                localStorage.removeItem('galaxy_family_token');
+                document.getElementById("galaxy-lockscreen").style.display = "flex";
+            } else {
+                // Si todo está correcto, quitamos bloqueo y arranca el sistema
+                document.getElementById("galaxy-lockscreen").style.display = "none";
+                loadFiles();
+                setInterval(loadFiles, 25000);
+            }
+        } catch (e) {
+            console.error("Fallo de órbita al validar sesión");
+        }
+    }
+
+    // Procesar envío del formulario de bloqueo
+    async function intentarLogin() {
+        const passwordInput = document.getElementById("family-pass-input").value;
+        const errorMsg = document.getElementById("lock-error");
+
+        try {
+            const res = await fetch(`${API}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: passwordInput })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                // Guardamos el token familiar o admin retornado por el server
+                localStorage.setItem('galaxy_family_token', data.token);
+                document.getElementById("galaxy-lockscreen").style.display = "none";
+                
+                // Inicializamos los archivos de inmediato
+                loadFiles();
+                setInterval(loadFiles, 25000);
+            } else {
+                errorMsg.style.display = "block";
+                errorMsg.innerText = "⚠️ Clave incorrecta";
+            }
+        } catch (err) {
+            errorMsg.style.display = "block";
+            errorMsg.innerText = "⚠️ Error de enlace con el servidor";
+        }
+    }
 
     async function loadFiles() {
+        const token = obtenerToken();
+        if (!token) return;
+
         try {
-            const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': TOKEN } });
+            const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': token } });
             
             if (res.status === 503) {
                 document.getElementById('maint-overlay').style.display = 'flex';
@@ -154,11 +254,17 @@
                 document.getElementById('maint-overlay').style.display = 'none';
             }
 
+            if (res.status === 401) {
+                verificarSesion();
+                return;
+            }
+
             const files = await res.json();
             
-            // Paneles de Admin
             if (res.headers.get('x-is-admin') === 'true') {
                 document.getElementById('admin-panel').style.display = 'block';
+            } else {
+                document.getElementById('admin-panel').style.display = 'none';
             }
             document.getElementById('hw-log').innerText = decodeURIComponent(res.headers.get('x-last-device') || "Ninguno");
 
@@ -176,13 +282,13 @@
                 item.innerHTML = `
                     <div class="file-info">
                         <div class="preview" style="width:40px; height:40px; background:#222; border-radius:10px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-                            ${isImage ? `<img src="${API}/preview/${folder}/${id}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
+                            ${isImage ? `<img src="${API}/preview/${folder}/${id}?x-admin-auth=${token}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
                         </div>
                         <div class="file-name">${f.name}<br><small style="color:#666">${f.size}</small></div>
                     </div>
                     <div class="actions">
                         <button onclick="showQR('${folder}', '${id}')" style="background:none; border:none; cursor:pointer; font-size:16px;">📱</button>
-                        <a href="${API}/download/${folder}/${id}" class="btn-dl">📥</a>
+                        <a href="${API}/download/${folder}/${id}?x-admin-auth=${token}" class="btn-dl">📥</a>
                         <button onclick="deleteFile('${f.id}')" class="btn-del">🗑️</button>
                     </div>
                 `;
@@ -197,7 +303,7 @@
     }
 
     async function showQR(folder, id) {
-        const res = await fetch(`${API}/share/qr/${folder}/${id}`, { headers: { 'x-admin-auth': TOKEN } });
+        const res = await fetch(`${API}/share/qr/${folder}/${id}`, { headers: { 'x-admin-auth': obtenerToken() } });
         const data = await res.json();
         document.getElementById('qr-img-container').innerHTML = `<img src="${data.qr_url}" style="width:200px; height:200px;">`;
         document.getElementById('qr-modal').style.display = 'flex';
@@ -209,7 +315,7 @@
         if (!confirm("¿Borrar de la nube?")) return;
         await fetch(`${API}/files/${id}`, { 
             method: 'DELETE', 
-            headers: { 'x-admin-auth': TOKEN } 
+            headers: { 'x-admin-auth': obtenerToken() } 
         });
         loadFiles();
     }
@@ -223,7 +329,7 @@
         await fetch(`${API}/upload`, { 
             method: 'POST', 
             body: formData,
-            headers: { 'x-admin-auth': TOKEN }
+            headers: { 'x-admin-auth': obtenerToken() }
         });
         
         document.querySelector('.upload-card').style.opacity = "1";
@@ -232,18 +338,23 @@
 
     async function toggleMaint(checked) {
         const action = checked ? 'on' : 'off';
-        await fetch(`${API}/admin/control?token=${TOKEN}&accion=${action}`);
+        await fetch(`${API}/admin/control?token=${obtenerToken()}&accion=${action}`);
         loadFiles();
     }
 
     async function setTimer() {
         const mins = document.getElementById('m-mins').value;
-        await fetch(`${API}/admin/control?token=${TOKEN}&accion=timer&minutos=${mins}`);
+        await fetch(`${API}/admin/control?token=${obtenerToken()}&accion=timer&minutos=${mins}`);
         loadFiles();
     }
 
-    loadFiles();
-    setInterval(loadFiles, 25000);
+    // Atajo de teclado 'Enter' para el Lockscreen
+    document.getElementById("family-pass-input").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") intentarLogin();
+    });
+
+    // Arrancar la verificación espacial al cargar la web
+    verificarSesion();
 </script>
 </body>
 </html>

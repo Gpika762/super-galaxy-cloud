@@ -11,6 +11,8 @@
             --glass: rgba(255, 255, 255, 0.1); 
             --error: #ff4444;
             --success: #00ff88;
+            --hyper-purple: #9d4edd;
+            --hyper-glow: rgba(157, 78, 221, 0.6);
         }
         
         body { 
@@ -32,6 +34,7 @@
             border-radius: 25px; padding: 20px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.8);
             position: relative; overflow: hidden;
+            box-sizing: border-box;
         }
 
         #maint-overlay {
@@ -40,8 +43,29 @@
             justify-content: center; align-items: center; text-align: center;
         }
 
-        h1 { text-align: center; font-weight: 200; letter-spacing: 4px; margin: 0 0 20px; font-size: 22px; text-shadow: 0 0 15px var(--aero-glow); }
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { font-weight: 200; letter-spacing: 4px; margin: 0; font-size: 22px; text-shadow: 0 0 15px var(--aero-glow); }
         h1 span { font-weight: 800; color: var(--aero-blue); }
+
+        .btn-hyper-nav {
+            background: rgba(157, 78, 221, 0.2);
+            border: 1px solid var(--hyper-purple);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--hyper-glow);
+            transition: 0.2s;
+        }
+        .btn-hyper-nav:hover { background: var(--hyper-purple); }
 
         .storage-card {
             background: rgba(0,0,0,0.3); border-radius: 15px;
@@ -62,12 +86,15 @@
             display: flex; align-items: center; justify-content: space-between;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        .file-info { display: flex; align-items: center; gap: 10px; width: 65%; }
+        .file-info { display: flex; align-items: center; gap: 10px; width: 55%; }
         .file-name { font-size: 13px; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .actions { display: flex; gap: 8px; }
-        .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 10px; font-weight: bold; }
-        .btn-del { background: rgba(255, 68, 68, 0.2); color: var(--error); padding: 8px 12px; border-radius: 8px; font-size: 10px; cursor: pointer; border: none; }
+        .actions { display: flex; gap: 6px; align-items: center; }
+        .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 10px; border-radius: 8px; font-size: 10px; font-weight: bold; display: inline-flex; justify-content: center; align-items: center; }
+        .btn-del { background: rgba(255, 68, 68, 0.2); color: var(--error); padding: 8px 10px; border-radius: 8px; font-size: 10px; cursor: pointer; border: none; }
         
+        .btn-hyper-action { background: none; border: none; cursor: pointer; font-size: 15px; transition: 0.2s; padding: 4px; }
+        .btn-hyper-action:hover { transform: scale(1.2); }
+
         /* --- ESTILO DE BLOQUEO GALAXY --- */
         #galaxy-lockscreen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -82,6 +109,19 @@
             backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.15); border-radius: 25px;
             padding: 30px 20px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        }
+
+        /* Modales estandarizados */
+        .galaxy-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; 
+            align-items: center; flex-direction: column; backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px); padding: 15px; box-sizing: border-box;
+        }
+        .modal-body-dark {
+            background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(255,255,255,0.15);
+            padding: 25px; border-radius: 22px; text-align: center; color: white;
+            max-width: 310px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box;
         }
     </style>
 </head>
@@ -114,7 +154,10 @@
         <p style="font-size: 13px; color: #aaa;">Estamos realizando mantenimiento técnico.<br>Vuelve pronto.</p>
     </div>
 
-    <h1>GALAXY<span>CLOUD</span></h1>
+    <div class="header-area">
+        <h1>GALAXY<span>CLOUD</span></h1>
+        <button class="btn-hyper-nav" onclick="abrirModalRecibirHyper()">⚡ Recibir</button>
+    </div>
 
     <div class="storage-card">
         <div class="storage-info">
@@ -134,11 +177,43 @@
     <div class="file-list" id="list"></div>
 </div>
 
-<div id="qr-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200; justify-content:center; align-items:center; flex-direction:column; backdrop-filter: blur(10px);">
-    <div style="background: white; padding: 20px; border-radius: 20px; text-align: center;">
-        <h3 style="color: black; margin-top:0;">Escanear para descargar</h3>
+<div id="qr-modal" class="galaxy-modal">
+    <div style="background: white; padding: 20px; border-radius: 20px; text-align: center; max-width: 260px;">
+        <h3 style="color: black; margin-top:0; font-size: 16px;">Escanear para descargar</h3>
         <div id="qr-img-container"></div>
-        <button onclick="closeQR()" style="margin-top:15px; padding:10px 20px; border-radius:10px; border:none; background: #333; color:white; cursor:pointer;">Cerrar</button>
+        <button onclick="closeQR()" style="margin-top:15px; padding:10px 20px; border-radius:10px; border:none; background: #333; color:white; cursor:pointer; font-weight: bold;">Cerrar</button>
+    </div>
+</div>
+
+<div id="hyper-generar-modal" class="galaxy-modal">
+    <div class="modal-body-dark" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
+        <h3 style="margin-top: 0; font-weight: 400; color: #d4a373;">⚡ CANAL DE TRANSFERENCIA</h3>
+        <p style="font-size: 12px; color: #bbb; margin-bottom: 20px;">Pon este PIN de 4 dígitos en el dispositivo destino. Expira en 10 minutos de reloj.</p>
+        
+        <div id="hyper-pin-display" style="font-size: 38px; font-weight: 800; letter-spacing: 6px; color: var(--success); background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">0000</div>
+        
+        <button onclick="cerrarModalGenerarHyper()" style="padding:10px 20px; border-radius:10px; border:none; background: #222; color:white; cursor:pointer; width: 100%; font-weight: bold;">Listo</button>
+    </div>
+</div>
+
+<div id="hyper-recibir-modal" class="galaxy-modal">
+    <div class="modal-body-dark" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
+        <h3 style="margin-top: 0; font-weight: 400; color: var(--hyper-purple); text-shadow: 0 0 8px var(--hyper-glow);">SINTONIZAR HIPER-PUENTE</h3>
+        <p style="font-size: 12px; color: #bbb; margin-bottom: 15px;">Ingresa el PIN de 4 dígitos generado para descargar y autodestruir el archivo.</p>
+        
+        <input type="number" id="hyper-pin-input" placeholder="Ej: 4821" pattern="[0-9]*" inputmode="numeric" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4)" style="
+            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
+            border: 1px solid var(--hyper-purple); background: rgba(0,0,0,0.6);
+            color: white; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 4px; box-sizing: border-box; outline: none;">
+            
+        <button onclick="procesarReclamoHyper()" style="
+            width: 100%; padding: 12px; background: var(--hyper-purple); color: white;
+            border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 12px var(--hyper-glow); margin-bottom: 10px;">
+            Enganchar Descarga 📥
+        </button>
+        
+        <button onclick="cerrarModalRecibirHyper()" style="padding:10px 20px; border-radius:10px; border:none; background: transparent; color:#aaa; cursor:pointer; width: 100%;">Cancelar</button>
     </div>
 </div>
 
@@ -244,6 +319,7 @@
                         <div class="file-name">${f.name}<br><small style="color:#666">${f.size}</small></div>
                     </div>
                     <div class="actions">
+                        <button onclick="generarHyperTransfer('${f.id}')" class="btn-hyper-action" title="Hyper Transfer">⚡</button>
                         <button onclick="showQR('${folder}', '${id}')" style="background:none; border:none; cursor:pointer; font-size:16px;">📱</button>
                         <a href="${API}/download/${folder}/${id}?x-admin-auth=${token}" class="btn-dl">📥</a>
                         <button onclick="deleteFile('${f.id}')" class="btn-del">🗑️</button>
@@ -257,6 +333,78 @@
             document.getElementById('storage-text').innerText = files.length + " / 500 archivos";
 
         } catch (e) { console.error("Error en la conexión estelar"); }
+    }
+
+    // --- ACCIONES CLIENTE DE HYPER TRANSFER ---
+
+    async function generarHyperTransfer(fileId) {
+        const token = obtenerToken();
+        try {
+            const res = await fetch(`${API}/transfer/generar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-auth': token
+                },
+                body: JSON.stringify({ fileId: fileId })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('hyper-pin-display').innerText = data.pin;
+                document.getElementById('hyper-generar-modal').style.display = 'flex';
+            } else {
+                alert("Error Hyper Transfer: " + data.error);
+            }
+        } catch (err) {
+            console.error("Error al emitir hiper-puente", err);
+        }
+    }
+
+    function abrirModalRecibirHyper() {
+        document.getElementById('hyper-pin-input').value = "";
+        document.getElementById('hyper-recibir-modal').style.display = 'flex';
+    }
+
+    function cerrarModalGenerarHyper() { document.getElementById('hyper-generar-modal').style.display = 'none'; }
+    function cerrarModalRecibirHyper() { document.getElementById('hyper-recibir-modal').style.display = 'none'; }
+
+    async function procesarReclamoHyper() {
+        const pin = document.getElementById('hyper-pin-input').value;
+        const token = obtenerToken();
+
+        if (!pin || pin.length !== 4) {
+            alert("Escribe el PIN completo de 4 dígitos");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/transfer/reclamar/${pin}`, {
+                method: 'GET',
+                headers: { 'x-admin-auth': token }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                cerrarModalRecibirHyper();
+                
+                // Generar ruta de descarga forzada e inyectar descarga en segundo plano
+                const downloadUrl = `${API}/download/${data.folder}/${data.id}?x-admin-auth=${token}`;
+                const linkTemporal = document.createElement('a');
+                linkTemporal.href = downloadUrl;
+                linkTemporal.download = "";
+                document.body.appendChild(linkTemporal);
+                linkTemporal.click();
+                linkTemporal.remove();
+                
+                alert("¡Puente enganchado! El archivo se está descargando y se eliminará de la nube en 15 segundos.");
+                setTimeout(loadFiles, 2000); // Recarga rápido la lista
+            } else {
+                alert("Fallo de puente: " + data.error);
+            }
+        } catch (err) {
+            console.error("Fallo de conexión en el reclamo", err);
+        }
     }
 
     async function showQR(folder, id) {

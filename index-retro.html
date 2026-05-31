@@ -121,6 +121,11 @@
             box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
         }
 
+        .btn-green {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
         /* Separador visual elegante */
         .divider {
             height: 1px;
@@ -128,9 +133,9 @@
             margin: 25px 0;
         }
 
-        /* --- ESTILOS DE LA PANTALLA DE ÉXITO INTEGRADA --- */
-        .success-screen {
-            display: none; /* Oculto por defecto */
+        /* --- ESTILOS DE PANTALLAS DE TRÁNSITO INTEGRADAS --- */
+        .success-screen, .download-screen {
+            display: none; /* Ocultos por defecto */
             padding: 15px 5px;
         }
 
@@ -140,6 +145,14 @@
             letter-spacing: 1px;
             margin-bottom: 10px;
             text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        .download-title {
+            color: #a855f7;
+            font-size: 24px;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
         }
 
         .device-badge {
@@ -152,6 +165,13 @@
             margin: 15px 0;
             display: inline-block;
             font-size: 13px;
+        }
+
+        .countdown-text {
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 15px;
         }
 
         /* Pie de página discreto */
@@ -167,10 +187,12 @@
 
     <div class="container">
         
+        <!-- VISTA COMPONENTE 1: FORMULARIOS DE INTERACCIÓN PRINCIPAL -->
         <div id="main-view">
             <h1>GALAXY CLOUD +</h1>
             <p class="subtitle">Modo Retro-Esencial Activo</p>
             
+            <!-- SECCIÓN A: EMISOR (SUBIR ARCHIVOS) -->
             <form action="/api/upload?redirect=true" method="POST" enctype="multipart/form-data">
                 <div class="panel-box" style="border-top: 3px solid #3b82f6;">
                     <h3>🚀 Enviar a la Nube</h3>
@@ -182,6 +204,7 @@
 
             <div class="divider"></div>
 
+            <!-- SECCIÓN B: RECEPTOR (SISTEMA DE CÓDIGOS HYPER TRANSFER) -->
             <form id="transfer-form" onsubmit="procesarReclamo(event)">
                 <div class="panel-box" style="border-top: 3px solid #a855f7; border-style: solid;">
                     <h3>⚡ Recibir por Hyper Transfer</h3>
@@ -192,6 +215,7 @@
             </form>
         </div>
 
+        <!-- VISTA COMPONENTE 2: PANTALLA DE ÉXITO INTEGRADA (SUBIDAS) -->
         <div id="success-view" class="success-screen">
             <div style="font-size: 50px; margin-bottom: 10px;">✅</div>
             <h2 class="success-title">¡ARCHIVO TRANSFERIDO!</h2>
@@ -201,49 +225,106 @@
                 Procesando Unidad...
             </div>
             
-            <br>
+            <br><br>
+            <a href="/retro" class="btn btn-blue" style="max-width: 220px;">Volver al Panel</a>
+        </div>
+
+        <!-- VISTA COMPONENTE 3: NUEVA PANTALLA DE DESCARGA RETRO CON FORZADO -->
+        <div id="download-view" class="download-screen">
+            <div style="font-size: 50px; margin-bottom: 10px;">📦</div>
+            <h2 class="download-title">DESCARGA PREPARADA</h2>
+            <p>El código Hyper Transfer es correcto. La descarga debería comenzar automáticamente.</p>
+            
+            <!-- BOTÓN ENLACE CLAVE: Si falla el auto-disparo, el usuario pincha aquí -->
+            <a id="force-download-btn" href="#" class="btn btn-green" style="max-width: 280px; margin-top: 25px;">
+                📥 FORZAR DESCARGA MANUAL
+            </a>
+
+            <p class="countdown-text">
+                🔥 ADVERTENCIA: El archivo se autodestruirá en Cloudinary en <span id="seconds-box">15</span> segundos.
+            </p>
+            
+            <div class="divider"></div>
             <a href="/retro" class="btn btn-blue" style="max-width: 220px;">Volver al Panel</a>
         </div>
         
+        <!-- PIE DE PÁGINA COMÚN -->
         <div class="footer">
             Conectado desde un dispositivo clásico balanceado por el servidor.
         </div>
     </div>
 
+    <!-- CONTROLADOR DE INTERFAZ INTEGRADO -->
     <script>
-        // 1. DETECTOR DE REDIRECCIÓN POR ÉXITO (Revisa parámetros URL de forma nativa)
-        function verificarEstadoSubida() {
+        // Auxiliar nativo para leer variables de la URL compatible con motoresJS viejos
+        function obtenerParametroUrl(nombre) {
             var query = window.location.search.substring(1);
             var variables = query.split("&");
-            var deviceParam = null;
-            
             for (var i = 0; i < variables.length; i++) {
                 var pair = variables[i].split("=");
-                if (pair[0] === "device") {
-                    deviceParam = decodeURIComponent(pair[1].replace(/\+/g, " "));
+                if (pair[0] === nombre) {
+                    return decodeURIComponent(pair[1].replace(/\+/g, " "));
                 }
             }
+            return null;
+        }
+
+        // 1. EVALUADOR DE ESTADOS (Decide qué vista pintar según la URL al cargar)
+        function verificarEstadoRutas() {
+            var deviceParam = obtenerParametroUrl("device");
+            var dlFolder = obtenerParametroUrl("dl_folder");
+            var dlId = obtenerParametroUrl("dl_id");
             
-            // Si la URL contiene datos del dispositivo, activamos la vista de éxito interna
+            // CASO A: Venimos de una subida exitosa
             if (deviceParam) {
                 document.getElementById("main-view").style.display = "none";
                 document.getElementById("success-view").style.display = "block";
                 document.getElementById("device-info-box").innerText = "Hardware: " + deviceParam;
             }
+            
+            // CASO B: El backend validó un PIN y nos devolvió aquí para descargar con seguridad
+            if (dlFolder && dlId) {
+                document.getElementById("main-view").style.display = "none";
+                document.getElementById("download-view").style.display = "block";
+                
+                // Construimos la ruta real de descarga forzada
+                var linkDescarga = "/api/download/" + dlFolder + "/" + dlId;
+                
+                // Configurar el botón físico de emergencia
+                var btnForzar = document.getElementById("force-download-btn");
+                btnForzar.setAttribute("href", linkDescarga);
+                
+                // Intento de disparo automático nativo (Simula click instantáneo)
+                try {
+                    window.location.href = linkDescarga;
+                } catch(e) {
+                    console.log("Auto-disparo bloqueado por el navegador clásico.");
+                }
+
+                // Reloj de cuenta regresiva cosmético para alertar al usuario del borrado
+                var segundos Restantes = 15;
+                var intervalo = setInterval(function() {
+                    segundosRestantes--;
+                    document.getElementById("seconds-box").innerText = segundosRestantes;
+                    if (segundosRestantes <= 0) {
+                        clearInterval(intervalo);
+                        document.getElementById("seconds-box").innerText = "0 (Borrado)";
+                    }
+                }, 1000);
+            }
         }
 
-        // 2. SISTEMA RECEPTOR DE CÓDIGOS HYPER TRANSFER
+        // 2. ENVÍO DEL CÓDIGO AL BACKEND
         function procesarReclamo(event) {
             event.preventDefault();
             var pin = document.getElementById("pin-input").value;
             if (pin && pin.length === 4) {
-                // Redirecciona al navegador directo al backend corregido
                 window.location.href = "/api/transfer/reclamar/" + pin;
             }
         }
 
-        // Ejecutar revisión al cargar el archivo HTML
-        verificarEstadoSubida();
+        // Ejecutar revisión al cargar
+        verificarEstadoRutas();
     </script>
 </body>
 </html>

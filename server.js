@@ -72,17 +72,14 @@ const checkStatus = (req, res, next) => {
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     
-    // Auto-limpieza del temporizador antes de verificar accesos
     if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {
         modoMantenimiento = false;
         tiempoMantenimiento = null;
     }
 
     if (password === ADMIN_TOKEN) {
-        // El administrador supremo siempre entra directo, incluso en mantenimiento
         return res.json({ success: true, role: "admin", token: ADMIN_TOKEN, maintenance: false });
     } else if (password === CONTRASEÑAS_FAMILIA["familia"]) {
-        // Si el sistema está en mantenimiento, se le avisa al frontend pero se le otorga el token
         return res.json({ 
             success: true, 
             role: "familia", 
@@ -135,8 +132,7 @@ app.get('/api/files', checkStatus, async (req, res) => {
 
         res.set('x-is-admin', req.isBoss ? 'true' : 'false');
         res.set('x-maint-status', modoMantenimiento ? 'true' : 'false');
-        res.set('x-last-device', encodeURIComponent(ultimoDispositivo));
-        res.set('Access-Control-Expose-Headers', 'x-is-admin, x-maint-status, x-last-device'); 
+        res.set('Access-Control-Expose-Headers', 'x-is-admin, x-maint-status'); 
         
         res.json(files);
     } catch (err) {
@@ -165,11 +161,9 @@ app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
 app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
-        
         const thumbUrl = cloudinary.url(publicId, {
             width: 250, height: 250, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto", secure: true
         });
-
         res.redirect(thumbUrl);
     } catch (err) {
         res.status(404).send("No se pudo generar miniatura");
@@ -217,37 +211,32 @@ app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
+// URL CONTROL REMOTO MANUAL (PARA TI)
+app.get('/api/admin/toggle-maint', (req, res) => {
+    if (req.query.token === ADMIN_TOKEN) {
+        modoMantenimiento = !modoMantenimiento;
+        tiempoMantenimiento = null;
+        res.send(`ESTADO MANTENIMIENTO: ${modoMantenimiento ? 'ACTIVADO (Bloqueo Total)' : 'DESACTIVADO (Órbita Libre)'}`);
+    } else {
+        res.status(401).send("Token inválido");
+    }
+});
+
 app.get('/api/admin/control', (req, res) => {
     if (req.query.token !== ADMIN_TOKEN) return res.status(401).send("Token inválido");
-    
     const { accion, minutos } = req.query;
 
-    if (accion === 'on') {
-        modoMantenimiento = true;
-        tiempoMantenimiento = null;
-    } else if (accion === 'off') {
-        modoMantenimiento = false;
-        tiempoMantenimiento = null;
-    } else if (accion === 'timer' && minutos) {
+    if (accion === 'on') { modoMantenimiento = true; tiempoMantenimiento = null; }
+    else if (accion === 'off') { modoMantenimiento = false; tiempoMantenimiento = null; }
+    else if (accion === 'timer' && minutos) {
         modoMantenimiento = true;
         tiempoMantenimiento = Date.now() + (parseInt(minutos) * 60000);
     }
 
     res.json({ 
         mantenimiento: modoMantenimiento, 
-        expira: tiempoMantenimiento ? new Date(tiempoMantenimiento).toLocaleTimeString() : "Manual",
-        dispositivo: ultimoDispositivo
+        expira: tiempoMantenimiento ? new Date(tiempoMantenimiento).toLocaleTimeString() : "Manual"
     });
-});
-
-app.get('/api/admin/toggle-maint', (req, res) => {
-    if (req.query.token === ADMIN_TOKEN) {
-        modoMantenimiento = !modoMantenimiento;
-        tiempoMantenimiento = null;
-        res.send(`ESTADO MANTENIMIENTO: ${modoMantenimiento}`);
-    } else {
-        res.status(401).send("Token inválido");
-    }
 });
 
 app.get('*', (req, res) => {

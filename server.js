@@ -8,7 +8,6 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json()); 
-// Usar path.join previene fallos de rutas estáticas en servidores como Render
 app.use(express.static(path.join(__dirname))); 
 
 // --- CONFIGURACIÓN DE CREDENCIALES ---
@@ -23,6 +22,27 @@ const CONTRASEÑAS_FAMILIA = {
     "admin": ADMIN_TOKEN,                                 // Tú con superpoderes
     "familia": process.env.FAMILY_KEY || "DELTAGOD",      // Contraseña común para tu familia
 };
+
+// --- BASE DE DATOS EN MEMORIA: HYPER TRANSFER ---
+let hyperTransfers = {}; // Estructura: { '4718': { fileId: '...', expires: 17643... } }
+
+function generarPinHyperTransfer() {
+    let pin;
+    do {
+        pin = Math.floor(1000 + Math.random() * 9000).toString();
+    } while (hyperTransfers[pin]);
+    return pin;
+}
+
+// Limpiador automático de pines expirados (corre cada 1 minuto)
+setInterval(() => {
+    const ahora = Date.now();
+    for (const pin in hyperTransfers) {
+        if (ahora > hyperTransfers[pin].expires) {
+            delete hyperTransfers[pin];
+        }
+    }
+}, 60000);
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
@@ -45,21 +65,18 @@ const upload = multer({ storage: storage });
 const checkStatus = (req, res, next) => {
     const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
     
-    const isFamily = (userToken === CONTRASEÑAS_FAMILIA["familia"]);
+    const isFamily = (userToken === CONTRASEREÑAS_FAMILIA["familia"]);
     const isAdmin = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
     
-    // Si no es parte de la familia ni admin, denegado instantáneo
     if (!userToken || (!isFamily && !isAdmin)) {
         return res.status(401).json({ error: "Acceso denegado. No eres miembro de la familia." });
     }
     
-    // Verificación automática de Temporizador de Mantenimiento
     if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {
         modoMantenimiento = false;
         tiempoMantenimiento = null;
     }
 
-    // Si hay mantenimiento activo y no eres el administrador supremo, bloqueo estricto
     if (modoMantenimiento && !isAdmin) {
         return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO PRIVADO" });
     }
@@ -68,7 +85,7 @@ const checkStatus = (req, res, next) => {
     next();
 };
 
-// --- ENDPOINT: LOGIN INTELIGENTE CON MEMORIA DE MANTENIMIENTO ---
+// --- ENDPOINT: LOGIN INTELIGENTE ---
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     
@@ -91,8 +108,21 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ success: false, error: "Clave familiar incorrecta" });
 });
 
-// 1. SUBIDA (Con detección de Hardware)
-app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
+// 1. SUBIDA (¡Corregido! Primero evalúa mantenimiento manual, luego ejecuta Multer)
+app.post('/api/upload', (req, res, next) => {
+    if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {
+        modoMantenimiento = false;
+        tiempoMantenimiento = null;
+    }
+
+    const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
+    const isAdmin = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
+
+    if (modoMantenimiento && !isAdmin) {
+        return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO PRIVADO" });
+    }
+    next();
+}, checkStatus, upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
 
@@ -113,7 +143,7 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     }
 });
 
-// 2. LISTADO (Con inyección de estadísticas)
+// 2. LISTADO
 app.get('/api/files', checkStatus, async (req, res) => {
     try {
         const result = await cloudinary.search
@@ -137,6 +167,59 @@ app.get('/api/files', checkStatus, async (req, res) => {
         res.json(files);
     } catch (err) {
         res.status(500).json({ error: "Error en el radar" });
+    }
+});
+
+// --- ENGINE NUEVO: ENDPOINTS DE HYPER TRANSFER ---
+
+// Generar código de vuelo de 4 dígitos para un archivo existente
+app.post('/api/transfer/generar', checkStatus, (req, res) => {
+    const { fileId } = req.body;
+    if (!fileId) return res.status(400).json({ error: "Falta el ID del archivo de origen" });
+
+    const pin = generarPinHyperTransfer();
+    hyperTransfers[pin] = {
+        fileId: fileId,
+        expires: Date.now() + 10 * 60 * 1000 // Expira estrictamente en 10 minutos
+    };
+
+    res.json({ success: true, pin });
+});
+
+// Reclamar puente Hyper Transfer por PIN (descarga y destruye en la nube)
+app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
+    try {
+        const { pin } = req.params;
+        const transferencia = hyperTransfers[pin];
+
+        if (!transferencia || Date.now() > transferencia.expires) {
+            return res.status(404).json({ error: "Código Hyper Transfer inválido o vencido" });
+        }
+
+        const publicId = transferencia.fileId;
+        const parts = publicId.split('/');
+        const folder = parts[0];
+        const id = parts[1];
+
+        // Retiramos el PIN inmediatamente de la memoria RAM para que no se use doble
+        delete hyperTransfers[pin];
+
+        // Ejecutamos la destrucción diferida en Cloudinary (15 segundos para no cortar el flujo stream de bajada)
+        setTimeout(async () => {
+            try {
+                let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+                if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+                if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+                console.log(`[Hyper Transfer] Archivo ${publicId} autodestruido con éxito.`);
+            } catch (cErr) {
+                console.error("Error en autodestrucción Cloudinary:", cErr);
+            }
+        }, 15000);
+
+        // Devolvemos las coordenadas de descarga al cliente
+        res.json({ success: true, folder, id });
+    } catch (err) {
+        res.status(500).json({ error: "Error en el distribuidor Hyper Transfer" });
     }
 });
 
@@ -194,6 +277,7 @@ app.post('/api/ads/update', (req, res) => {
     }
 });
 
+// ELIMINAR ARCHIVO MANUAL
 app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -211,7 +295,7 @@ app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
-// URL CONTROL REMOTO MANUAL (PARA TI)
+// URL CONTROL REMOTO MANUAL
 app.get('/api/admin/toggle-maint', (req, res) => {
     if (req.query.token === ADMIN_TOKEN) {
         modoMantenimiento = !modoMantenimiento;

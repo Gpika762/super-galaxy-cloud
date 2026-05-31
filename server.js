@@ -67,7 +67,11 @@ const checkStatus = (req, res, next) => {
     next();
 };
 
-// 1. SUBIDA LIBRE (Con detección de Hardware)
+// =========================================================================
+// 1. ENDPOINTS DE LA API (PROCESAMIENTO Y CONTROL DE DATOS)
+// =========================================================================
+
+// SUBIDA LIBRE (Con detección de Hardware y redirección opcional para motores viejos)
 app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
@@ -82,13 +86,22 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
         else if (ua.includes("Android")) ultimoDispositivo = "Móvil Android";
         else ultimoDispositivo = "Dispositivo Familiar";
 
+        // Si viene desde el formulario HTML nativo con ?redirect=true, evitamos el JSON plano
+        if (req.query.redirect === 'true') {
+            return res.redirect(`/retro-success?device=${encodeURIComponent(ultimoDispositivo)}`);
+        }
+
+        // Respuesta JSON estándar para la interfaz Pro moderna
         res.status(200).json({ success: true, url: req.file.path, device: ultimoDispositivo });
     } catch (err) {
+        if (req.query.redirect === 'true') {
+            return res.send(`<h2>Error en la carga: ${err.message}</h2><a href="/retro">Volver a intentar</a>`);
+        }
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. LISTADO LIBRE
+// LISTADO LIBRE
 app.get('/api/files', checkStatus, async (req, res) => {
     try {
         const result = await cloudinary.search
@@ -111,7 +124,7 @@ app.get('/api/files', checkStatus, async (req, res) => {
     }
 });
 
-// 3. GENERAR PIN EN HYPER TRANSFER
+// GENERAR PIN EN HYPER TRANSFER
 app.post('/api/transfer/generar', checkStatus, (req, res) => {
     const { fileId } = req.body;
     if (!fileId) return res.status(400).json({ error: "Falta el ID del archivo" });
@@ -125,7 +138,7 @@ app.post('/api/transfer/generar', checkStatus, (req, res) => {
     res.json({ success: true, pin });
 });
 
-// 4. RECLAMAR PIN EN HYPER TRANSFER
+// RECLAMAR PIN EN HYPER TRANSFER
 app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
     try {
         const { pin } = req.params;
@@ -158,7 +171,7 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
     }
 });
 
-// 5. GENERADOR DE QR LIBRE
+// GENERADOR DE QR LIBRE
 app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
         const { folder, id } = req.params;
@@ -172,7 +185,7 @@ app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
-// 6. PRE-VISUALIZADOR LIBRE
+// PRE-VISUALIZADOR LIBRE
 app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -185,7 +198,7 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     }
 });
 
-// 7. DESCARGA FORZADA LIBRE
+// DESCARGA FORZADA LIBRE
 app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -210,7 +223,7 @@ app.delete('/api/files/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
-// URL de control de mantenimiento manual libre de tokens para comodidad
+// URL de control de mantenimiento manual
 app.get('/api/admin/toggle-maint', (req, res) => {
     modoMantenimiento = !modoMantenimiento;
     tiempoMantenimiento = null;
@@ -228,19 +241,25 @@ app.get('/api/admin/control', (req, res) => {
 // 8. ENRUTAMIENTO CONTROLADO POR RUTAS FIJAS (SISTEMA DETERMINISTA POR URL)
 // =========================================================================
 
-// Ruta específica para la interfaz Retro-Esencial (index-retro.html)
+// Ruta específica para la interfaz Retro-Esencial
 app.get('/retro', (req, res) => {
     console.log(`📟 [Ruta Fija] Desplegando index-retro.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-retro.html'));
 });
 
-// Ruta específica para la interfaz de Transición (index-transition.html)
+// NUEVA: Ruta específica para la pantalla de éxito en subidas manuales retro
+app.get('/retro-success', (req, res) => {
+    console.log(`✅ [Ruta Fija] Desplegando index-retro-success.html.`);
+    res.sendFile(path.join(__dirname, 'index-retro-success.html'));
+});
+
+// Ruta específica para la interfaz de Transición
 app.get('/transition', (req, res) => {
     console.log(`⚖️ [Ruta Fija] Desplegando index-transition.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-transition.html'));
 });
 
-// Ruta específica para la interfaz de No Compatible (index-unsupported.html)
+// Ruta específica para la interfaz de No Compatible
 app.get('/unsupported', (req, res) => {
     console.log(`⚠️ [Ruta Fija] Desplegando index-unsupported.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-unsupported.html'));

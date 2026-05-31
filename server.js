@@ -253,7 +253,7 @@ app.get('*', (req, res) => {
 
         if (esiOSViejo || esAndroidMedio) {
             console.log(`⚖️ [IA Cloud] Dispositivo de Transición detectado. Sirviendo index-transition.html`);
-            return res.sendFile(path.join(__dirname, 'index-transition.html'));
+            return res.sendFile(path.join(__dirname, 'index-retro.html'));
         }
 
         // --- CARA ULTRA-MODERNA (PC Notebook, Dispositivos Actuales) ---

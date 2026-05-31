@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Cloud+ Retro</title>
+    <style>
+        body {
+            background-color: #2b1d0c; /* Color café oscuro estético */
+            color: #ffffff;
+            font-family: sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            border: 2px dashed #e5a93b;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: #3d2a13;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+        h1 { color: #e5a93b; font-size: 24px; margin-bottom: 5px; }
+        p { font-size: 14px; color: #dfdfdf; }
+        .btn-submit {
+            background-color: #8c2d19;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+            color: white;
+        }
+        .footer-info {
+            margin-top: 30px;
+            font-size: 11px;
+            color: #a8947c;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GALAXY CLOUD <span style="color: #fff;">+</span></h1>
+    <p>Modo Retro-Esencial Activo</p>
+    <br>
+
+    <div class="container">
+        <h3>🚀 Subir Archivo</h3>
+        <p>Selecciona un archivo para enviarlo directamente a Cloudinary de forma nativa.</p>
+        
+        <form action="/api/upload" method="POST" enctype="multipart/form-data">
+            <input type="file" name="archivo" required>
+            <br>
+            <button type="submit" class="btn-submit">Subir a la Nube</button>
+        </form>
+    </div>
+
+    <div class="footer-info">
+        Conectado desde un dispositivo clásico balanceado por el servidor.
+    </div>
+
+</body>
+</html>

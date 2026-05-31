@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Galaxy Cloud + | Modo Retro</title>
     <style>
-        /* Fondo degradado oscuro con la esencia espacial del Pro */
+        /* Fondo degradado oscuro con la esencia espacial de la interfaz Pro */
         body {
             background: #0a0f1d linear-gradient(135deg, #0a0f1d 0%, #070a14 100%);
             color: #e2e8f0;
@@ -15,19 +15,19 @@
             padding: 30px 15px;
         }
 
-        /* Contenedor principal estilizado con bordes neón suaves */
+        /* Contenedor principal con bordes neón suaves */
         .container {
             max-width: 600px;
             margin: 0 auto;
             background-color: #111827;
             border: 2px solid #1e293b;
-            border-top: 3px solid #3b82f6; /* Detalle azul neón superior */
+            border-top: 3px solid #3b82f6; 
             border-radius: 12px;
             padding: 25px 20px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         }
 
-        /* Encabezado con estética sci-fi */
+        /* Encabezados de secciones con estética sci-fi */
         h1 {
             color: #3b82f6;
             font-size: 26px;
@@ -45,46 +45,62 @@
             margin-bottom: 30px;
         }
 
-        /* Zona de carga / Caja del formulario */
-        .upload-box {
+        /* Cajas de herramientas de la interfaz */
+        .panel-box {
             border: 2px dashed #334155;
             border-radius: 8px;
-            padding: 30px 15px;
+            padding: 25px 15px;
             background-color: #0f172a;
-            margin-bottom: 20px;
-        }
-
-        .upload-box h3 {
-            color: #f1f5f9;
-            margin-top: 0;
-            font-size: 18px;
-        }
-
-        .upload-box p {
-            color: #64748b;
-            font-size: 13px;
             margin-bottom: 25px;
         }
 
-        /* Estilización del input nativo "Seleccionar archivo" */
-        input[type="file"] {
+        .panel-box h3 {
+            color: #f1f5f9;
+            margin-top: 0;
+            font-size: 18px;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-box p {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        /* Inputs nativos tradicionales para máxima compatibilidad hardware */
+        input[type="file"], input[type="text"] {
             color: #94a3b8;
             font-size: 14px;
             background: #1e293b;
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-radius: 6px;
             border: 1px solid #334155;
-            width: 90%;
-            max-width: 350px;
+            width: 85%;
+            max-width: 320px;
+            box-sizing: border-box;
         }
 
-        /* Botón de acción principal con degradado azul tecnológico */
-        .btn-submit {
+        /* Input para códigos Hyper Transfer */
+        input[type="text"] {
+            color: #ffffff;
+            font-size: 18px;
+            letter-spacing: 4px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #475569;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #a855f7;
+        }
+
+        /* Botones estilizados con degradados tecnológicos */
+        .btn {
             display: block;
             width: 100%;
             max-width: 280px;
-            margin: 25px auto 0 auto;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            margin: 15px auto 0 auto;
             color: #ffffff;
             border: none;
             border-radius: 6px;
@@ -92,7 +108,50 @@
             font-size: 15px;
             font-weight: bold;
             cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        /* Separador visual elegante */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #1e293b, transparent);
+            margin: 25px 0;
+        }
+
+        /* --- ESTILOS DE LA PANTALLA DE ÉXITO INTEGRADA --- */
+        .success-screen {
+            display: none; /* Oculto por defecto */
+            padding: 15px 5px;
+        }
+
+        .success-title {
+            color: #10b981;
+            font-size: 24px;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        .device-badge {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            padding: 8px 15px;
+            border-radius: 6px;
+            color: #3b82f6;
+            font-weight: bold;
+            margin: 15px 0;
+            display: inline-block;
+            font-size: 13px;
         }
 
         /* Pie de página discreto */
@@ -107,24 +166,85 @@
 <body>
 
     <div class="container">
-        <h1>GALAXY CLOUD +</h1>
-        <p class="subtitle">Modo Retro-Esencial Activo</p>
         
-        <form action="/api/upload" method="POST" enctype="multipart/form-data">
-            <div class="upload-box">
-                <h3>🚀 Subir Archivo</h3>
-                <p>Tu terminal enviará el elemento de forma directa y optimizada a la central Cloudinary.</p>
-                
-                <input type="file" name="archivo" required>
+        <div id="main-view">
+            <h1>GALAXY CLOUD +</h1>
+            <p class="subtitle">Modo Retro-Esencial Activo</p>
+            
+            <form action="/api/upload?redirect=true" method="POST" enctype="multipart/form-data">
+                <div class="panel-box" style="border-top: 3px solid #3b82f6;">
+                    <h3>🚀 Enviar a la Nube</h3>
+                    <p>Sube archivos directamente a los servidores sin scripts dinámicos pesados.</p>
+                    <input type="file" name="archivo" required>
+                    <button type="submit" class="btn btn-blue">Subir Elemento</button>
+                </div>
+            </form>
+
+            <div class="divider"></div>
+
+            <form id="transfer-form" onsubmit="procesarReclamo(event)">
+                <div class="panel-box" style="border-top: 3px solid #a855f7; border-style: solid;">
+                    <h3>⚡ Recibir por Hyper Transfer</h3>
+                    <p>Ingresa el código PIN de 4 dígitos para descargar y destruir el archivo.</p>
+                    <input type="text" id="pin-input" placeholder="0000" maxlength="4" pattern="\d{4}" required>
+                    <button type="submit" class="btn btn-purple">Reclamar y Descargar</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="success-view" class="success-screen">
+            <div style="font-size: 50px; margin-bottom: 10px;">✅</div>
+            <h2 class="success-title">¡ARCHIVO TRANSFERIDO!</h2>
+            <p>Los datos han sido procesados por la central de Cloudinary de forma óptima.</p>
+            
+            <div class="device-badge" id="device-info-box">
+                Procesando Unidad...
             </div>
             
-            <button type="submit" class="btn-submit">Subir a la Nube</button>
-        </form>
+            <br>
+            <a href="/retro" class="btn btn-blue" style="max-width: 220px;">Volver al Panel</a>
+        </div>
         
         <div class="footer">
             Conectado desde un dispositivo clásico balanceado por el servidor.
         </div>
     </div>
 
+    <script>
+        // 1. DETECTOR DE REDIRECCIÓN POR ÉXITO (Revisa parámetros URL de forma nativa)
+        function verificarEstadoSubida() {
+            var query = window.location.search.substring(1);
+            var variables = query.split("&");
+            var deviceParam = null;
+            
+            for (var i = 0; i < variables.length; i++) {
+                var pair = variables[i].split("=");
+                if (pair[0] === "device") {
+                    deviceParam = decodeURIComponent(pair[1].replace(/\+/g, " "));
+                }
+            }
+            
+            // Si la URL contiene datos del dispositivo, apagamos el panel y encendemos el Éxito
+            if (deviceParam) {
+                document.getElementById("main-view").style.display = "none";
+                document.getElementById("success-view").style.display = "block";
+                document.getElementById("device-info-box").innerText = "Hardware: " + deviceParam;
+            }
+        }
+
+        // 2. SISTEMA RECEPTOR DE CÓDIGOS HYPER TRANSFER
+        // Redirecciona al endpoint del servidor de forma directa para evitar llamadas fetch asíncronas incompatibles
+        function procesarReclamo(event) {
+            event.preventDefault();
+            var pin = document.getElementById("pin-input").value;
+            if (pin && pin.length === 4) {
+                // Mandamos al navegador directo al backend a procesar su pin
+                window.location.href = "/api/transfer/reclamar/" + pin;
+            }
+        }
+
+        // Ejecutar revisión al cargar el archivo HTML
+        verificarEstadoSubida();
+    </script>
 </body>
 </html>

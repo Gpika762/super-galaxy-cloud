@@ -7,15 +7,22 @@ const path = require('path');
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // Necesario para procesar el body de los anuncios
-app.use(express.static(__dirname));
+app.use(express.json()); 
+// Usar path.join previene fallos de rutas estáticas en servidores como Render
+app.use(express.static(path.join(__dirname))); 
 
-// --- CONFIGURACIÓN ---
+// --- CONFIGURACIÓN DE CREDENCIALES ---
 const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY; 
 let modoMantenimiento = false; 
-let tiempoMantenimiento = null; // Almacena el fin del temporizador
-let ultimoDispositivo = "Ninguno detectado"; // Para el Hardware Log
-let currentAd = { text: "¡Bienvenidos a Galaxy Cloud!", img: "", link: "#" };
+let tiempoMantenimiento = null; 
+let ultimoDispositivo = "Ninguno detectado"; 
+let currentAd = { text: "¡Bienvenidos a Galaxy Cloud Familiar!", img: "", link: "#" };
+
+// BASE DE DATOS LOCAL PARA LA FAMILIA (Rápido, limpio y seguro)
+const CONTRASEÑAS_FAMILIA = {
+    "admin": ADMIN_TOKEN,                 // Tú con superpoderes
+    "familia": process.env.FAMILY_KEY || "GalaxyFamily2026", // Contraseña común para tu familia
+};
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUD_NAME, 
@@ -34,40 +41,62 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// --- MIDDLEWARE DE AUTORIZACIÓN (Unificado) ---
+// --- MIDDLEWARE DE AUTORIZACIÓN (Mantenimiento + Filtro Familiar) ---
 const checkStatus = (req, res, next) => {
     const userToken = req.headers['x-admin-auth'];
-    const isBoss = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
     
-    // Verificación automática de Temporizador
+    // El "Jefe" puede ser el token de admin o la clave familiar
+    const isFamily = (userToken === CONTRASEÑAS_FAMILIA["familia"]);
+    const isBoss = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined) || isFamily;
+    
+    // Si no es parte de la familia ni admin, se rechaza de inmediato (Nube Privada)
+    if (!userToken || (!isFamily && userToken !== ADMIN_TOKEN)) {
+        return res.status(401).json({ error: "Acceso denegado. No eres miembro de la familia." });
+    }
+    
+    // Verificación automática de Temporizador de Mantenimiento
     if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {
         modoMantenimiento = false;
         tiempoMantenimiento = null;
     }
 
-    // Si hay mantenimiento y no eres el jefe, bloqueamos
-    if (modoMantenimiento && !isBoss) {
-        return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO" });
+    // Si hay mantenimiento y no eres el administrador supremo, se bloquea temporalmente
+    if (modoMantenimiento && userToken !== ADMIN_TOKEN) {
+        return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO PRIVADO" });
     }
     
-    req.isBoss = isBoss;
+    req.isBoss = (userToken === ADMIN_TOKEN); // True solo si eres tú con el token maestro
     next();
 };
+
+// --- ENDPOINT NUEVO: LOGIN FAMILIAR ---
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    
+    if (password === ADMIN_TOKEN) {
+        return res.json({ success: true, role: "admin", token: ADMIN_TOKEN });
+    } else if (password === CONTRASEÑAS_FAMILIA["familia"]) {
+        return res.json({ success: true, role: "familia", token: CONTRASEÑAS_FAMILIA["familia"] });
+    }
+    
+    res.status(401).json({ success: false, error: "Clave familiar incorrecta" });
+});
 
 // 1. SUBIDA (Con detección de Hardware)
 app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
 
-        // Detección de Dispositivo (Hardware Log)
-        const ua = req.headers['user-agent'];
+        // Detección de Dispositivo (Hardware Log optimizado)
+        const ua = req.headers['user-agent'] || "";
         if (ua.includes("GT-I9100")) ultimoDispositivo = "Samsung Galaxy S2";
         else if (ua.includes("GT-I9300")) ultimoDispositivo = "Samsung Galaxy S3";
         else if (ua.includes("GT-I9505") || ua.includes("GT-I9500")) ultimoDispositivo = "Samsung Galaxy S4";
         else if (ua.includes("SM-G900")) ultimoDispositivo = "Samsung Galaxy S5";
         else if (ua.includes("SM-N900")) ultimoDispositivo = "Samsung Galaxy Note 3";
         else if (ua.includes("Windows")) ultimoDispositivo = "Notebook (PC)";
-        else ultimoDispositivo = "Móvil Desconocido";
+        else if (ua.includes("Android")) ultimoDispositivo = "Móvil Android";
+        else ultimoDispositivo = "Dispositivo Familiar";
 
         res.status(200).json({ success: true, url: req.file.path, device: ultimoDispositivo });
     } catch (err) {
@@ -103,26 +132,26 @@ app.get('/api/files', checkStatus, async (req, res) => {
     }
 });
 
-// --- NUEVAS FUNCIONES: PREVIEW, QR Y DESCARGA ---
-// 5. GENERADOR DE QR
-// 5. GENERADOR DE QR
+// 5. GENERADOR DE QR (¡REPARADO!)
+// Apunta de manera dinámica a tu propia API de descarga forzada para evitar caídas
 app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
-        const publicId = `${req.params.folder}/${req.params.id}`;
-        // Obtenemos la URL del archivo original
-        const fileUrl = cloudinary.url(publicId, { secure: true });
+        const { folder, id } = req.params;
         
-        // QR via Google Charts
-        const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(fileUrl)}`;
+        // Genera la URL base (sirve tanto para Localhost como para tu dominio de Render automáticamente)
+        const hostBase = `${req.protocol}://${req.get('host')}`;
+        const downloadRoute = `${hostBase}/api/download/${folder}/${id}`;
         
-        // Aquí SÍ enviamos JSON porque el frontend necesita la URL para armar el modal
-        res.json({ qr_url: qrUrl, original_url: fileUrl });
+        // Cambiado a qrserver para codificación limpia de caracteres especiales de Cloudinary
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(downloadRoute)}`;
+        
+        res.json({ qr_url: qrUrl, original_url: downloadRoute });
     } catch (err) {
         res.status(500).json({ error: "Error en el radar QR" });
     }
 });
 
-// 6. PRE-VISUALIZADOR (Corregido para etiquetas <img>)
+// 6. PRE-VISUALIZADOR (Para etiquetas <img>)
 app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
@@ -133,12 +162,10 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
             crop: "fill",
             gravity: "auto",
             quality: "auto",
-            fetch_format: "auto", // Esto ayuda mucho al S2/S4 enviando WebP si lo soporta
+            fetch_format: "auto", // Ultra-compatible con los navegadores del S2/S4
             secure: true
         });
 
-        // CAMBIO CLAVE: En lugar de res.json, usamos res.redirect
-        // Así el <img src="/api/preview/..."> recibe la imagen real
         res.redirect(thumbUrl);
     } catch (err) {
         res.status(404).send("No se pudo generar miniatura");
@@ -150,7 +177,6 @@ app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
         
-        // Agregamos flags: "attachment" para forzar la descarga en Android antiguo
         const downloadUrl = cloudinary.url(publicId, { 
             flags: "attachment", 
             secure: true 
@@ -161,8 +187,6 @@ app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
         res.status(500).send("Error al descargar");
     }
 });
-
-// --- FIN NUEVAS FUNCIONES ---
 
 app.get('/api/ads', (req, res) => {
     res.json(currentAd);
@@ -227,6 +251,8 @@ app.get('/api/admin/toggle-maint', (req, res) => {
     }
 });
 
+// --- SISTEMA ANTIFALLOS DE RUTAS ---
+// Captura cualquier link roto o mal escrito en la URL y lo manda suavemente al index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

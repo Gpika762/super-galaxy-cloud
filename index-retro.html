@@ -224,7 +224,7 @@
                 }
             }
             
-            // Si la URL contiene datos del dispositivo, apagamos el panel y encendemos el Éxito
+            // Si la URL contiene datos del dispositivo, activamos la vista de éxito interna
             if (deviceParam) {
                 document.getElementById("main-view").style.display = "none";
                 document.getElementById("success-view").style.display = "block";
@@ -233,12 +233,11 @@
         }
 
         // 2. SISTEMA RECEPTOR DE CÓDIGOS HYPER TRANSFER
-        // Redirecciona al endpoint del servidor de forma directa para evitar llamadas fetch asíncronas incompatibles
         function procesarReclamo(event) {
             event.preventDefault();
             var pin = document.getElementById("pin-input").value;
             if (pin && pin.length === 4) {
-                // Mandamos al navegador directo al backend a procesar su pin
+                // Redirecciona al navegador directo al backend corregido
                 window.location.href = "/api/transfer/reclamar/" + pin;
             }
         }

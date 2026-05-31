@@ -225,59 +225,34 @@ app.get('/api/admin/control', (req, res) => {
 });
 
 // =========================================================================
-// 8. CEREBRO CLASIFICADOR ADAPTATIVO INTERCONECTADO (SISTEMA DE 4 VÍAS)
+// 8. ENRUTAMIENTO CONTROLADO POR RUTAS FIJAS (SISTEMA DETERMINISTA POR URL)
 // =========================================================================
+
+// Ruta específica para la interfaz Retro-Esencial (index-retro.html)
+app.get('/retro', (req, res) => {
+    console.log(`📟 [Ruta Fija] Desplegando index-retro.html de forma directa.`);
+    res.sendFile(path.join(__dirname, 'index-retro.html'));
+});
+
+// Ruta específica para la interfaz de Transición (index-transition.html)
+app.get('/transition', (req, res) => {
+    console.log(`⚖️ [Ruta Fija] Desplegando index-transition.html de forma directa.`);
+    res.sendFile(path.join(__dirname, 'index-transition.html'));
+});
+
+// Ruta específica para la interfaz de No Compatible (index-unsupported.html)
+app.get('/unsupported', (req, res) => {
+    console.log(`⚠️ [Ruta Fija] Desplegando index-unsupported.html de forma directa.`);
+    res.sendFile(path.join(__dirname, 'index-unsupported.html'));
+});
+
+// Comodín final (*): Si no es la API ni una ruta fija, sirve la versión Pro (index.html)
 app.get('*', (req, res) => {
-    try {
-        const ua = req.headers['user-agent'] || "";
-        const uaLower = ua.toLowerCase();
-
-        // Control estricto para que los endpoints funcionales de la API no retornen HTML
-        if (req.path.startsWith('/api/')) {
-            return res.status(404).json({ error: "Endpoint no encontrado en el radar" });
-        }
-
-        // --- ENRUTAMIENTO MANUAL POR PARÁMETROS (Herramienta de desarrollo) ---
-        if (req.query.mode === 'retro') return res.sendFile(path.join(__dirname, 'index-retro.html'));
-        if (req.query.mode === 'transition') return res.sendFile(path.join(__dirname, 'index-transition.html'));
-        if (req.query.mode === 'unsupported') return res.sendFile(path.join(__dirname, 'index-unsupported.html'));
-
-        // --- 1. MÁQUINA RETRO-ESENCIAL (Filtro por UA directo de tus joyas clásicas) ---
-        const esAndroidViejo = /android [1-4]\./.test(uaLower) || uaLower.includes("version/4.");
-        const esNokiaViejo = uaLower.includes("nokia") || uaLower.includes("symbian");
-        const esHardwareRetro = /gt-i9100|gt-i9300|gt-i9500|gt-i9505|sm-g900|sm-n900/.test(uaLower);
-
-        if (esAndroidViejo || esNokiaViejo || esHardwareRetro) {
-            console.log(`📟 [Clasificador] Hardware Retro Detectado. Desplegando index-retro.html`);
-            return res.sendFile(path.join(__dirname, 'index-retro.html'));
-        }
-
-        // --- 2. SISTEMA DE VERIFICACIÓN DE INCOMPATIBILIDAD CRÍTICA ---
-        // Si el navegador no tiene firmas modernas (sec-ch-ua) y además usa motores obsoletos
-        const noTieneFirmaModerna = !req.headers['sec-ch-ua'];
-        const esMotorObsoleto = uaLower.includes("safari/534") || uaLower.includes("opera mini") || uaLower.includes("blackberry");
-
-        if (noTieneFirmaModerna && esMotorObsoleto) {
-            console.log(`⚠️ [Clasificador] Dispositivo roto o incompatible en el limbo. Desplegando index-unsupported.html`);
-            return res.sendFile(path.join(__dirname, 'index-unsupported.html'));
-        }
-
-        // --- 3. MÁQUINA DE TRANSICIÓN (iOS Antiguos, Android v5.0 / v6.0) ---
-        const esiOSViejo = /iphone os [7-9]_/.test(uaLower) || uaLower.includes("iphone os 10_") || (uaLower.includes("ipad") && /os [7-9]_/.test(uaLower));
-        const esAndroidMedio = /android [5-6]\./.test(uaLower);
-
-        if (esiOSViejo || esAndroidMedio) {
-            console.log(`⚖️ [Clasificador] Dispositivo en Transición. Desplegando index-transition.html`);
-            return res.sendFile(path.join(__dirname, 'index-transition.html'));
-        }
-
-        // --- 4. MÁQUINA ULTRA-MODERNA (PC Notebook, Equipos Actuales) ---
-        console.log(`🚀 [Clasificador] Dispositivo apto para interfaz Pro. Desplegando index.html`);
-        res.sendFile(path.join(__dirname, 'index.html'));
-
-    } catch (err) {
-        res.sendFile(path.join(__dirname, 'index.html'));
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: "Endpoint no encontrado en el radar" });
     }
+    console.log(`🚀 [Ruta Fija] Desplegando interfaz Pro por defecto (index.html)`);
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // --- INICIO DEL PUERTO DE LANZAMIENTO ---

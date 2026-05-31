@@ -224,7 +224,47 @@ app.get('/api/admin/control', (req, res) => {
     res.json({ mantenimiento: modoMantenimiento });
 });
 
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+// =========================================================================
+// 8. CEREBRO CLASIFICADOR ADAPTATIVO (MULTISISTEMA DE 3 CARAS)
+// =========================================================================
+app.get('*', (req, res) => {
+    try {
+        const ua = req.headers['user-agent'] || "";
+        const uaLower = ua.toLowerCase();
 
+        // Control de rutas de la API para evitar que caigan en respuestas HTML
+        if (req.path.startsWith('/api/')) {
+            return res.status(404).json({ error: "Endpoint no encontrado en el radar" });
+        }
+
+        // --- CARA RETRO-ESENCIAL (Galaxy S legacy, Nokias, Legacy Androids) ---
+        const esAndroidViejo = /android [1-4]\./.test(uaLower);
+        const esNokiaViejo = uaLower.includes("nokia") || uaLower.includes("symbian");
+        const esHardwareRetro = /gt-i9100|gt-i9300|gt-i9500|gt-i9505|sm-g900|sm-n900/.test(uaLower);
+
+        if (esAndroidViejo || esNokiaViejo || esHardwareRetro) {
+            console.log(`📟 [IA Cloud] Dispositivo Retro detectado. Sirviendo index-retro.html`);
+            return res.sendFile(path.join(__dirname, 'index-retro.html'));
+        }
+
+        // --- CARA DE TRANSICIÓN (iOS Antiguos, Android v5.0 / v6.0) ---
+        const esiOSViejo = /iphone os [7-9]_/.test(uaLower) || uaLower.includes("iphone os 10_") || (uaLower.includes("ipad") && /os [7-9]_/.test(uaLower));
+        const esAndroidMedio = /android [5-6]\./.test(uaLower);
+
+        if (esiOSViejo || esAndroidMedio) {
+            console.log(`⚖️ [IA Cloud] Dispositivo de Transición detectado. Sirviendo index-transition.html`);
+            return res.sendFile(path.join(__dirname, 'index-transition.html'));
+        }
+
+        // --- CARA ULTRA-MODERNA (PC Notebook, Dispositivos Actuales) ---
+        console.log(`🚀 [IA Cloud] Sistema Moderno detectado. Sirviendo index.html de forma nativa.`);
+        res.sendFile(path.join(__dirname, 'index.html'));
+
+    } catch (err) {
+        res.sendFile(path.join(__dirname, 'index.html'));
+    }
+});
+
+// --- INICIO DEL PUERTO DE LANZAMIENTO ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Nube Libre Activa en Puerto ${PORT}`));

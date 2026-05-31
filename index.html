@@ -34,22 +34,6 @@
             position: relative; overflow: hidden;
         }
 
-        /* --- PANEL ADMIN --- */
-        #admin-panel {
-            display: none; background: rgba(0,0,0,0.4);
-            border-radius: 20px; padding: 15px; margin-bottom: 20px;
-            border: 1px solid rgba(0, 148, 255, 0.3);
-            font-size: 12px;
-        }
-        .admin-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        
-        .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--aero-blue); }
-        input:checked + .slider:before { transform: translateX(16px); }
-
         #maint-overlay {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column;
@@ -125,23 +109,6 @@
 </div>
 
 <div class="container">
-    <div id="admin-panel">
-        <div class="admin-row">
-            <span>🛡️ Mantenimiento Manual</span>
-            <label class="switch">
-                <input type="checkbox" id="maint-switch" onchange="toggleMaint(this.checked)">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div id="timer-ui" style="margin-bottom:10px;">
-            <input type="number" id="m-mins" value="15" style="width:40px; background:transparent; border:1px solid #444; color:white; border-radius:5px; font-size:11px;">
-            <button onclick="setTimer()" style="background:var(--aero-blue); border:none; color:white; font-size:10px; padding:4px 8px; border-radius:5px; cursor:pointer;">Poner Temporizador</button>
-        </div>
-        <div class="admin-row" style="opacity: 0.7; font-size: 10px;">
-            <span>📱 Último dispositivo: <b id="hw-log">Buscando...</b></span>
-        </div>
-    </div>
-
     <div id="maint-overlay">
         <h2 style="color: var(--error);">SISTEMA FUERA DE ÓRBITA</h2>
         <p style="font-size: 13px; color: #aaa;">Estamos realizando mantenimiento técnico.<br>Vuelve pronto.</p>
@@ -178,12 +145,10 @@
 <script>
     const API = "/api";
     
-    // Obtener dinámicamente el token guardado en la sesión del navegador
     function obtenerToken() {
         return localStorage.getItem('galaxy_family_token') || "";
     }
 
-    // Comprobar la sesión apenas carga la interfaz
     async function verificarSesion() {
         const tokenActual = obtenerToken();
         if (!tokenActual) {
@@ -194,11 +159,9 @@
         try {
             const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': tokenActual } });
             if (res.status === 401) {
-                // Si el token guardado caducó o es inválido, borramos y forzamos bloqueo
                 localStorage.removeItem('galaxy_family_token');
                 document.getElementById("galaxy-lockscreen").style.display = "flex";
             } else {
-                // Si todo está correcto, quitamos bloqueo y arranca el sistema
                 document.getElementById("galaxy-lockscreen").style.display = "none";
                 loadFiles();
                 setInterval(loadFiles, 25000);
@@ -208,45 +171,39 @@
         }
     }
 
-    // Procesar envío del formulario de bloqueo
-async function intentarLogin() {
-    const passwordInput = document.getElementById("family-pass-input").value;
-    const errorMsg = document.getElementById("lock-error");
+    async function intentarLogin() {
+        const passwordInput = document.getElementById("family-pass-input").value;
+        const errorMsg = document.getElementById("lock-error");
 
-    try {
-        const res = await fetch(`${API}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: passwordInput })
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch(`${API}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: passwordInput })
+            });
+            const data = await res.json();
 
-        if (data.success) {
-            // GUARDA EL INTENTO EXITOSO AQUÍ: Guardamos el token en localStorage
-            localStorage.setItem('galaxy_family_token', data.token);
-            
-            if (data.maintenance) {
-                // Si está en mantenimiento, ocultamos la pantalla de login y activamos el aviso de bloqueo
-                document.getElementById("galaxy-lockscreen").style.display = "none";
-                document.getElementById('maint-overlay').style.display = 'flex';
+            if (data.success) {
+                localStorage.setItem('galaxy_family_token', data.token);
                 
-                // Empezamos el bucle en segundo plano para que se abra solo en cuanto termine el mantenimiento
-                setInterval(loadFiles, 15000);
+                if (data.maintenance) {
+                    document.getElementById("galaxy-lockscreen").style.display = "none";
+                    document.getElementById('maint-overlay').style.display = 'flex';
+                    setInterval(loadFiles, 15000);
+                } else {
+                    document.getElementById("galaxy-lockscreen").style.display = "none";
+                    loadFiles();
+                    setInterval(loadFiles, 25000);
+                }
             } else {
-                // Acceso directo normal
-                document.getElementById("galaxy-lockscreen").style.display = "none";
-                loadFiles();
-                setInterval(loadFiles, 25000);
+                errorMsg.innerText = "⚠️ Clave incorrecta";
+                errorMsg.style.display = "block";
             }
-        } else {
-            errorMsg.innerText = "⚠️ Clave incorrecta";
+        } catch (err) {
+            errorMsg.innerText = "⚠️ Error de conexión cósmica";
             errorMsg.style.display = "block";
         }
-    } catch (err) {
-        errorMsg.innerText = "⚠️ Error de conexión cósmica";
-        errorMsg.style.display = "block";
     }
-}
 
     async function loadFiles() {
         const token = obtenerToken();
@@ -268,14 +225,6 @@ async function intentarLogin() {
             }
 
             const files = await res.json();
-            
-            if (res.headers.get('x-is-admin') === 'true') {
-                document.getElementById('admin-panel').style.display = 'block';
-            } else {
-                document.getElementById('admin-panel').style.display = 'none';
-            }
-            document.getElementById('hw-log').innerText = decodeURIComponent(res.headers.get('x-last-device') || "Ninguno");
-
             const list = document.getElementById('list');
             list.innerHTML = "";
 
@@ -334,34 +283,24 @@ async function intentarLogin() {
         formData.append('archivo', file);
         document.querySelector('.upload-card').style.opacity = "0.5";
         
-        await fetch(`${API}/upload`, { 
+        const res = await fetch(`${API}/upload`, { 
             method: 'POST', 
             body: formData,
             headers: { 'x-admin-auth': obtenerToken() }
         });
+
+        if (res.status === 503) {
+            alert("Subida bloqueada: El sistema está bajo mantenimiento privado.");
+        }
         
         document.querySelector('.upload-card').style.opacity = "1";
         loadFiles();
     }
 
-    async function toggleMaint(checked) {
-        const action = checked ? 'on' : 'off';
-        await fetch(`${API}/admin/control?token=${obtenerToken()}&accion=${action}`);
-        loadFiles();
-    }
-
-    async function setTimer() {
-        const mins = document.getElementById('m-mins').value;
-        await fetch(`${API}/admin/control?token=${obtenerToken()}&accion=timer&minutos=${mins}`);
-        loadFiles();
-    }
-
-    // Atajo de teclado 'Enter' para el Lockscreen
     document.getElementById("family-pass-input").addEventListener("keypress", (e) => {
         if (e.key === "Enter") intentarLogin();
     });
 
-    // Arrancar la verificación espacial al cargar la web
     verificarSesion();
 </script>
 </body>

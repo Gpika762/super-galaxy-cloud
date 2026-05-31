@@ -3,66 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galaxy Cloud+ Retro</title>
+    <title>Galaxy Cloud + | Modo Retro</title>
     <style>
+        /* Fondo degradado oscuro con la esencia espacial del Pro */
         body {
-            background-color: #2b1d0c; /* Color café oscuro estético */
-            color: #ffffff;
-            font-family: sans-serif;
-            padding: 20px;
+            background: #0a0f1d linear-gradient(135deg, #0a0f1d 0%, #070a14 100%);
+            color: #e2e8f0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
             text-align: center;
+            margin: 0;
+            padding: 30px 15px;
         }
+
+        /* Contenedor principal estilizado con bordes neón suaves */
         .container {
-            border: 2px dashed #e5a93b;
-            border-radius: 10px;
-            padding: 20px;
-            background-color: #3d2a13;
-            max-width: 90%;
+            max-width: 600px;
             margin: 0 auto;
+            background-color: #111827;
+            border: 2px solid #1e293b;
+            border-top: 3px solid #3b82f6; /* Detalle azul neón superior */
+            border-radius: 12px;
+            padding: 25px 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         }
-        h1 { color: #e5a93b; font-size: 24px; margin-bottom: 5px; }
-        p { font-size: 14px; color: #dfdfdf; }
-        .btn-submit {
-            background-color: #8c2d19;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
+
+        /* Encabezado con estética sci-fi */
+        h1 {
+            color: #3b82f6;
+            font-size: 26px;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
         }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+
+        /* Zona de carga / Caja del formulario */
+        .upload-box {
+            border: 2px dashed #334155;
+            border-radius: 8px;
+            padding: 30px 15px;
+            background-color: #0f172a;
+            margin-bottom: 20px;
+        }
+
+        .upload-box h3 {
+            color: #f1f5f9;
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        .upload-box p {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+
+        /* Estilización del input nativo "Seleccionar archivo" */
         input[type="file"] {
-            margin: 15px 0;
-            color: white;
+            color: #94a3b8;
+            font-size: 14px;
+            background: #1e293b;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            width: 90%;
+            max-width: 350px;
         }
-        .footer-info {
-            margin-top: 30px;
+
+        /* Botón de acción principal con degradado azul tecnológico */
+        .btn-submit {
+            display: block;
+            width: 100%;
+            max-width: 280px;
+            margin: 25px auto 0 auto;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Pie de página discreto */
+        .footer {
+            margin-top: 35px;
             font-size: 11px;
-            color: #a8947c;
+            color: #475569;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
 
-    <h1>GALAXY CLOUD <span style="color: #fff;">+</span></h1>
-    <p>Modo Retro-Esencial Activo</p>
-    <br>
-
     <div class="container">
-        <h3>🚀 Subir Archivo</h3>
-        <p>Selecciona un archivo para enviarlo directamente a Cloudinary de forma nativa.</p>
+        <h1>GALAXY CLOUD +</h1>
+        <p class="subtitle">Modo Retro-Esencial Activo</p>
         
         <form action="/api/upload" method="POST" enctype="multipart/form-data">
-            <input type="file" name="archivo" required>
-            <br>
+            <div class="upload-box">
+                <h3>🚀 Subir Archivo</h3>
+                <p>Tu terminal enviará el elemento de forma directa y optimizada a la central Cloudinary.</p>
+                
+                <input type="file" name="archivo" required>
+            </div>
+            
             <button type="submit" class="btn-submit">Subir a la Nube</button>
         </form>
-    </div>
-
-    <div class="footer-info">
-        Conectado desde un dispositivo clásico balanceado por el servidor.
+        
+        <div class="footer">
+            Conectado desde un dispositivo clásico balanceado por el servidor.
+        </div>
     </div>
 
 </body>

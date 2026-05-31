@@ -95,23 +95,6 @@
         .btn-hyper-action { background: none; border: none; cursor: pointer; font-size: 15px; transition: 0.2s; padding: 4px; }
         .btn-hyper-action:hover { transform: scale(1.2); }
 
-        /* --- ESTILO DE BLOQUEO GALAXY --- */
-        #galaxy-lockscreen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            background-image: 
-                radial-gradient(circle at 50% 30%, #001a33 0%, transparent 50%),
-                radial-gradient(circle at 50% 70%, #002244 0%, #000 100%);
-            z-index: 99999; display: flex; justify-content: center; align-items: center;
-        }
-        .lock-box {
-            width: 100%; max-width: 320px; background: var(--glass);
-            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255,255,255,0.15); border-radius: 25px;
-            padding: 30px 20px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.7);
-        }
-
-        /* Modales estandarizados */
         .galaxy-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; 
@@ -126,27 +109,6 @@
     </style>
 </head>
 <body>
-
-<div id="galaxy-lockscreen">
-    <div class="lock-box">
-        <h2 style="margin: 0 0 5px; font-weight: 200; letter-spacing: 3px; text-shadow: 0 0 15px var(--aero-glow);">GALAXY<span>CLOUD</span></h2>
-        <p style="font-size: 12px; color: #888; margin: 0 0 25px;">Acceso seguro para la familia</p>
-        
-        <input type="password" id="family-pass-input" placeholder="Clave de Órbita" style="
-            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4);
-            color: white; text-align: center; font-size: 15px; box-sizing: border-box; outline: none;">
-            
-        <button onclick="intentarLogin()" style="
-            width: 100%; padding: 12px; background: var(--aero-blue); color: white;
-            border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
-            cursor: pointer; box-shadow: 0 0 15px var(--aero-glow); transition: 0.2s;">
-            Desbloquear Sistema
-        </button>
-        
-        <p id="lock-error" style="color: var(--error); font-size: 12px; margin-top: 12px; display: none;">⚠️ Clave incorrecta</p>
-    </div>
-</div>
 
 <div class="container">
     <div id="maint-overlay">
@@ -189,9 +151,7 @@
     <div class="modal-body-dark" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
         <h3 style="margin-top: 0; font-weight: 400; color: #d4a373;">⚡ CANAL DE TRANSFERENCIA</h3>
         <p style="font-size: 12px; color: #bbb; margin-bottom: 20px;">Pon este PIN de 4 dígitos en el dispositivo destino. Expira en 10 minutos de reloj.</p>
-        
         <div id="hyper-pin-display" style="font-size: 38px; font-weight: 800; letter-spacing: 6px; color: var(--success); background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">0000</div>
-        
         <button onclick="cerrarModalGenerarHyper()" style="padding:10px 20px; border-radius:10px; border:none; background: #222; color:white; cursor:pointer; width: 100%; font-weight: bold;">Listo</button>
     </div>
 </div>
@@ -200,103 +160,32 @@
     <div class="modal-body-dark" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
         <h3 style="margin-top: 0; font-weight: 400; color: var(--hyper-purple); text-shadow: 0 0 8px var(--hyper-glow);">SINTONIZAR HIPER-PUENTE</h3>
         <p style="font-size: 12px; color: #bbb; margin-bottom: 15px;">Ingresa el PIN de 4 dígitos generado para descargar y autodestruir el archivo.</p>
-        
         <input type="number" id="hyper-pin-input" placeholder="Ej: 4821" pattern="[0-9]*" inputmode="numeric" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4)" style="
             width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
             border: 1px solid var(--hyper-purple); background: rgba(0,0,0,0.6);
             color: white; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 4px; box-sizing: border-box; outline: none;">
-            
         <button onclick="procesarReclamoHyper()" style="
             width: 100%; padding: 12px; background: var(--hyper-purple); color: white;
             border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
             cursor: pointer; box-shadow: 0 0 12px var(--hyper-glow); margin-bottom: 10px;">
             Enganchar Descarga 📥
         </button>
-        
         <button onclick="cerrarModalRecibirHyper()" style="padding:10px 20px; border-radius:10px; border:none; background: transparent; color:#aaa; cursor:pointer; width: 100%;">Cancelar</button>
     </div>
 </div>
 
 <script>
     const API = "/api";
-    
-    function obtenerToken() {
-        return localStorage.getItem('galaxy_family_token') || "";
-    }
-
-    async function verificarSesion() {
-        const tokenActual = obtenerToken();
-        if (!tokenActual) {
-            document.getElementById("galaxy-lockscreen").style.display = "flex";
-            return;
-        }
-
-        try {
-            const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': tokenActual } });
-            if (res.status === 401) {
-                localStorage.removeItem('galaxy_family_token');
-                document.getElementById("galaxy-lockscreen").style.display = "flex";
-            } else {
-                document.getElementById("galaxy-lockscreen").style.display = "none";
-                loadFiles();
-                setInterval(loadFiles, 25000);
-            }
-        } catch (e) {
-            console.error("Fallo de órbita al validar sesión");
-        }
-    }
-
-    async function intentarLogin() {
-        const passwordInput = document.getElementById("family-pass-input").value;
-        const errorMsg = document.getElementById("lock-error");
-
-        try {
-            const res = await fetch(`${API}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: passwordInput })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                localStorage.setItem('galaxy_family_token', data.token);
-                
-                if (data.maintenance) {
-                    document.getElementById("galaxy-lockscreen").style.display = "none";
-                    document.getElementById('maint-overlay').style.display = 'flex';
-                    setInterval(loadFiles, 15000);
-                } else {
-                    document.getElementById("galaxy-lockscreen").style.display = "none";
-                    loadFiles();
-                    setInterval(loadFiles, 25000);
-                }
-            } else {
-                errorMsg.innerText = "⚠️ Clave incorrecta";
-                errorMsg.style.display = "block";
-            }
-        } catch (err) {
-            errorMsg.innerText = "⚠️ Error de conexión cósmica";
-            errorMsg.style.display = "block";
-        }
-    }
 
     async function loadFiles() {
-        const token = obtenerToken();
-        if (!token) return;
-
         try {
-            const res = await fetch(`${API}/files`, { headers: { 'x-admin-auth': token } });
+            const res = await fetch(`${API}/files`);
             
             if (res.status === 503) {
                 document.getElementById('maint-overlay').style.display = 'flex';
                 return;
             } else {
                 document.getElementById('maint-overlay').style.display = 'none';
-            }
-
-            if (res.status === 401) {
-                verificarSesion();
-                return;
             }
 
             const files = await res.json();
@@ -314,15 +203,15 @@
                 item.innerHTML = `
                     <div class="file-info">
                         <div class="preview" style="width:40px; height:40px; background:#222; border-radius:10px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-                            ${isImage ? `<img src="${API}/preview/${folder}/${id}?x-admin-auth=${token}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
+                            ${isImage ? `<img src="${API}/preview/${folder}/${id}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
                         </div>
                         <div class="file-name">${f.name}<br><small style="color:#666">${f.size}</small></div>
                     </div>
                     <div class="actions">
                         <button onclick="generarHyperTransfer('${f.id}')" class="btn-hyper-action" title="Hyper Transfer">⚡</button>
                         <button onclick="showQR('${folder}', '${id}')" style="background:none; border:none; cursor:pointer; font-size:16px;">📱</button>
-                        <a href="${API}/download/${folder}/${id}?x-admin-auth=${token}" class="btn-dl">📥</a>
-                        <button onclick="deleteFile('${f.id}')" class="btn-del">🗑️</button>
+                        <a href="${API}/download/${folder}/${id}" class="btn-dl">📥</a>
+                        <button onclick="deleteFile('${folder}', '${id}')" class="btn-del">🗑️</button>
                     </div>
                 `;
                 list.appendChild(item);
@@ -335,17 +224,11 @@
         } catch (e) { console.error("Error en la conexión estelar"); }
     }
 
-    // --- ACCIONES CLIENTE DE HYPER TRANSFER ---
-
     async function generarHyperTransfer(fileId) {
-        const token = obtenerToken();
         try {
             const res = await fetch(`${API}/transfer/generar`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-admin-auth': token
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fileId: fileId })
             });
             const data = await res.json();
@@ -371,34 +254,26 @@
 
     async function procesarReclamoHyper() {
         const pin = document.getElementById('hyper-pin-input').value;
-        const token = obtenerToken();
-
         if (!pin || pin.length !== 4) {
             alert("Escribe el PIN completo de 4 dígitos");
             return;
         }
 
         try {
-            const res = await fetch(`${API}/transfer/reclamar/${pin}`, {
-                method: 'GET',
-                headers: { 'x-admin-auth': token }
-            });
+            const res = await fetch(`${API}/transfer/reclamar/${pin}`);
             const data = await res.json();
 
             if (data.success) {
                 cerrarModalRecibirHyper();
-                
-                // Generar ruta de descarga forzada e inyectar descarga en segundo plano
-                const downloadUrl = `${API}/download/${data.folder}/${data.id}?x-admin-auth=${token}`;
+                const downloadUrl = `${API}/download/${data.folder}/${data.id}`;
                 const linkTemporal = document.createElement('a');
                 linkTemporal.href = downloadUrl;
-                linkTemporal.download = "";
                 document.body.appendChild(linkTemporal);
                 linkTemporal.click();
                 linkTemporal.remove();
                 
                 alert("¡Puente enganchado! El archivo se está descargando y se eliminará de la nube en 15 segundos.");
-                setTimeout(loadFiles, 2000); // Recarga rápido la lista
+                setTimeout(loadFiles, 2000);
             } else {
                 alert("Fallo de puente: " + data.error);
             }
@@ -408,7 +283,7 @@
     }
 
     async function showQR(folder, id) {
-        const res = await fetch(`${API}/share/qr/${folder}/${id}`, { headers: { 'x-admin-auth': obtenerToken() } });
+        const res = await fetch(`${API}/share/qr/${folder}/${id}`);
         const data = await res.json();
         document.getElementById('qr-img-container').innerHTML = `<img src="${data.qr_url}" style="width:200px; height:200px;">`;
         document.getElementById('qr-modal').style.display = 'flex';
@@ -416,12 +291,9 @@
 
     function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
 
-    async function deleteFile(id) {
+    async function deleteFile(folder, id) {
         if (!confirm("¿Borrar de la nube?")) return;
-        await fetch(`${API}/files/${id}`, { 
-            method: 'DELETE', 
-            headers: { 'x-admin-auth': obtenerToken() } 
-        });
+        await fetch(`${API}/files/${folder}/${id}`, { method: 'DELETE' });
         loadFiles();
     }
 
@@ -431,12 +303,7 @@
         formData.append('archivo', file);
         document.querySelector('.upload-card').style.opacity = "0.5";
         
-        const res = await fetch(`${API}/upload`, { 
-            method: 'POST', 
-            body: formData,
-            headers: { 'x-admin-auth': obtenerToken() }
-        });
-
+        const res = await fetch(`${API}/upload`, { method: 'POST', body: formData });
         if (res.status === 503) {
             alert("Subida bloqueada: El sistema está bajo mantenimiento privado.");
         }
@@ -445,11 +312,9 @@
         loadFiles();
     }
 
-    document.getElementById("family-pass-input").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") intentarLogin();
-    });
-
-    verificarSesion();
+    // Ejecución inicial limpia e inmediata
+    loadFiles();
+    setInterval(loadFiles, 25000);
 </script>
 </body>
 </html>

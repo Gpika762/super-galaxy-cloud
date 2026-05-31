@@ -18,7 +18,7 @@ let tiempoMantenimiento = null;
 let ultimoDispositivo = "Ninguno detectado"; 
 let currentAd = { text: "¡Bienvenidos a Galaxy Cloud Familiar!", img: "", link: "#" };
 
-// BASE DE DATOS LOCAL PARA LA FAMILIA (Rápido, limpio y seguro)
+// BASE DE DATOS LOCAL PARA LA FAMILIA
 const CONTRASEÑAS_FAMILIA = {
     "admin": ADMIN_TOKEN,                                 // Tú con superpoderes
     "familia": process.env.FAMILY_KEY || "DELTAGOD",      // Contraseña común para tu familia
@@ -41,17 +41,15 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// --- MIDDLEWARE DE AUTORIZACIÓN (Optimizado para Headers y Query Params) ---
+// --- MIDDLEWARE DE AUTORIZACIÓN (Mantenimiento + Filtro Familiar Estricto) ---
 const checkStatus = (req, res, next) => {
-    // NUEVO: Busca el token en los headers o en la URL (?x-admin-auth=...) para imágenes/descargas
     const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
     
-    // Verificación de credenciales familiares o administrador
     const isFamily = (userToken === CONTRASEÑAS_FAMILIA["familia"]);
-    const isBoss = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined) || isFamily;
+    const isAdmin = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
     
-    // Si no es parte de la familia ni admin, se rechaza de inmediato (Nube Privada)
-    if (!userToken || (!isFamily && userToken !== ADMIN_TOKEN)) {
+    // Si no es parte de la familia ni admin, denegado instantáneo
+    if (!userToken || (!isFamily && !isAdmin)) {
         return res.status(401).json({ error: "Acceso denegado. No eres miembro de la familia." });
     }
     
@@ -61,23 +59,36 @@ const checkStatus = (req, res, next) => {
         tiempoMantenimiento = null;
     }
 
-    // Si hay mantenimiento y no eres el administrador supremo, se bloquea temporalmente
-    if (modoMantenimiento && userToken !== ADMIN_TOKEN) {
+    // Si hay mantenimiento activo y no eres el administrador supremo, bloqueo estricto
+    if (modoMantenimiento && !isAdmin) {
         return res.status(503).json({ error: "SISTEMA EN MANTENIMIENTO PRIVADO" });
     }
     
-    req.isBoss = (userToken === ADMIN_TOKEN); // True solo si eres tú con el token maestro
+    req.isBoss = isAdmin; 
     next();
 };
 
-// --- ENDPOINT: LOGIN FAMILIAR ---
+// --- ENDPOINT: LOGIN INTELIGENTE CON MEMORIA DE MANTENIMIENTO ---
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     
+    // Auto-limpieza del temporizador antes de verificar accesos
+    if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {
+        modoMantenimiento = false;
+        tiempoMantenimiento = null;
+    }
+
     if (password === ADMIN_TOKEN) {
-        return res.json({ success: true, role: "admin", token: ADMIN_TOKEN });
+        // El administrador supremo siempre entra directo, incluso en mantenimiento
+        return res.json({ success: true, role: "admin", token: ADMIN_TOKEN, maintenance: false });
     } else if (password === CONTRASEÑAS_FAMILIA["familia"]) {
-        return res.json({ success: true, role: "familia", token: CONTRASEÑAS_FAMILIA["familia"] });
+        // Si el sistema está en mantenimiento, se le avisa al frontend pero se le otorga el token
+        return res.json({ 
+            success: true, 
+            role: "familia", 
+            token: CONTRASEÑAS_FAMILIA["familia"], 
+            maintenance: modoMantenimiento 
+        });
     }
     
     res.status(401).json({ success: false, error: "Clave familiar incorrecta" });
@@ -88,7 +99,7 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No llegó el archivo" });
 
-        // Detección de Dispositivo (Hardware Log optimizado)
+        // Detección de Hardware Log
         const ua = req.headers['user-agent'] || "";
         if (ua.includes("GT-I9100")) ultimoDispositivo = "Samsung Galaxy S2";
         else if (ua.includes("GT-I9300")) ultimoDispositivo = "Samsung Galaxy S3";
@@ -133,18 +144,15 @@ app.get('/api/files', checkStatus, async (req, res) => {
     }
 });
 
-// 5. GENERADOR DE QR (Inyecta el token en la URL de descarga para que funcione al escanear)
+// 5. GENERADOR DE QR
 app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
         const { folder, id } = req.params;
         const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
         
-        // Genera la URL base dinámica (sirve tanto para Localhost como para Render automáticamente)
         const hostBase = `${req.protocol}://${req.get('host')}`;
-        // La URL incrustada en el QR llevará el token integrado para acceso instantáneo
         const downloadRoute = `${hostBase}/api/download/${folder}/${id}?x-admin-auth=${userToken}`;
         
-        // QR via qrserver para codificación limpia de caracteres especiales de Cloudinary
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(downloadRoute)}`;
         
         res.json({ qr_url: qrUrl, original_url: downloadRoute });
@@ -153,19 +161,13 @@ app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     }
 });
 
-// 6. PRE-VISUALIZADOR (Para etiquetas <img>)
+// 6. PRE-VISUALIZADOR
 app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
         
         const thumbUrl = cloudinary.url(publicId, {
-            width: 250,
-            height: 250,
-            crop: "fill",
-            gravity: "auto",
-            quality: "auto",
-            fetch_format: "auto", // Ultra-compatible con navegadores antiguos y modernos
-            secure: true
+            width: 250, height: 250, crop: "fill", gravity: "auto", quality: "auto", fetch_format: "auto", secure: true
         });
 
         res.redirect(thumbUrl);
@@ -178,12 +180,7 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
 app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
-        
-        const downloadUrl = cloudinary.url(publicId, { 
-            flags: "attachment", 
-            secure: true 
-        });
-        
+        const downloadUrl = cloudinary.url(publicId, { flags: "attachment", secure: true });
         res.redirect(downloadUrl);
     } catch (err) {
         res.status(500).send("Error al descargar");
@@ -253,7 +250,6 @@ app.get('/api/admin/toggle-maint', (req, res) => {
     }
 });
 
-// --- SISTEMA ANTIFALLOS DE RUTAS ---
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

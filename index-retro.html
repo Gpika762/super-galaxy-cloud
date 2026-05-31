@@ -109,6 +109,7 @@
             font-weight: bold;
             cursor: pointer;
             text-decoration: none;
+            box-sizing: border-box;
         }
 
         .btn-blue {
@@ -187,12 +188,10 @@
 
     <div class="container">
         
-        <!-- VISTA COMPONENTE 1: FORMULARIOS DE INTERACCIÓN PRINCIPAL -->
         <div id="main-view">
             <h1>GALAXY CLOUD +</h1>
             <p class="subtitle">Modo Retro-Esencial Activo</p>
             
-            <!-- SECCIÓN A: EMISOR (SUBIR ARCHIVOS) -->
             <form action="/api/upload?redirect=true" method="POST" enctype="multipart/form-data">
                 <div class="panel-box" style="border-top: 3px solid #3b82f6;">
                     <h3>🚀 Enviar a la Nube</h3>
@@ -204,7 +203,6 @@
 
             <div class="divider"></div>
 
-            <!-- SECCIÓN B: RECEPTOR (SISTEMA DE CÓDIGOS HYPER TRANSFER) -->
             <form id="transfer-form" onsubmit="procesarReclamo(event)">
                 <div class="panel-box" style="border-top: 3px solid #a855f7; border-style: solid;">
                     <h3>⚡ Recibir por Hyper Transfer</h3>
@@ -215,7 +213,6 @@
             </form>
         </div>
 
-        <!-- VISTA COMPONENTE 2: PANTALLA DE ÉXITO INTEGRADA (SUBIDAS) -->
         <div id="success-view" class="success-screen">
             <div style="font-size: 50px; margin-bottom: 10px;">✅</div>
             <h2 class="success-title">¡ARCHIVO TRANSFERIDO!</h2>
@@ -229,13 +226,11 @@
             <a href="/retro" class="btn btn-blue" style="max-width: 220px;">Volver al Panel</a>
         </div>
 
-        <!-- VISTA COMPONENTE 3: NUEVA PANTALLA DE DESCARGA RETRO CON FORZADO -->
         <div id="download-view" class="download-screen">
             <div style="font-size: 50px; margin-bottom: 10px;">📦</div>
             <h2 class="download-title">DESCARGA PREPARADA</h2>
             <p>El código Hyper Transfer es correcto. La descarga debería comenzar automáticamente.</p>
             
-            <!-- BOTÓN ENLACE CLAVE: Si falla el auto-disparo, el usuario pincha aquí -->
             <a id="force-download-btn" href="#" class="btn btn-green" style="max-width: 280px; margin-top: 25px;">
                 📥 FORZAR DESCARGA MANUAL
             </a>
@@ -248,13 +243,11 @@
             <a href="/retro" class="btn btn-blue" style="max-width: 220px;">Volver al Panel</a>
         </div>
         
-        <!-- PIE DE PÁGINA COMÚN -->
         <div class="footer">
             Conectado desde un dispositivo clásico balanceado por el servidor.
         </div>
     </div>
 
-    <!-- CONTROLADOR DE INTERFAZ INTEGRADO -->
     <script>
         // Auxiliar nativo para leer variables de la URL compatible con motoresJS viejos
         function obtenerParametroUrl(nombre) {
@@ -301,8 +294,8 @@
                     console.log("Auto-disparo bloqueado por el navegador clásico.");
                 }
 
-                // Reloj de cuenta regresiva cosmético para alertar al usuario del borrado
-                var segundos Restantes = 15;
+                // CORREGIDO: Espacio eliminado de la variable 'segundosRestantes'
+                var segundosRestantes = 15;
                 var intervalo = setInterval(function() {
                     segundosRestantes--;
                     document.getElementById("seconds-box").innerText = segundosRestantes;

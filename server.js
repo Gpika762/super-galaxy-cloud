@@ -15,7 +15,7 @@ const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY || "DELTARUNEGOD";
 let modoMantenimiento = false; 
 let tiempoMantenimiento = null; 
 let ultimoDispositivo = "Ninguno detectado"; 
-let currentAd = { text: "¡Bienvenidos a Galaxy Cloud Familiar!", img: "", link: "#" };
+let currentAd = { text: "¡Bienvenidos a Galaxy Cloud !", img: "", link: "#" };
 
 // BASE DE DATOS LOCAL PARA LA FAMILIA
 const CONTRASEÑAS_FAMILIA = {
@@ -69,7 +69,7 @@ const checkStatus = (req, res, next) => {
     const isAdmin = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined);
     
     if (!userToken || (!isFamily && !isAdmin)) {
-        return res.status(401).json({ error: "Acceso denegado. No eres miembro de la familia." });
+        return res.status(401).json({ error: "Acceso denegado." });
     }
     
     if (tiempoMantenimiento && Date.now() > tiempoMantenimiento) {

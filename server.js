@@ -86,9 +86,9 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
         else if (ua.includes("Android")) ultimoDispositivo = "Móvil Android";
         else ultimoDispositivo = "Dispositivo Familiar";
 
-        // Si viene desde el formulario HTML nativo con ?redirect=true, evitamos el JSON plano
+        // Ajustado para que el archivo único index-retro reciba el badge de éxito por URL
         if (req.query.redirect === 'true') {
-            return res.redirect(`/retro-success?device=${encodeURIComponent(ultimoDispositivo)}`);
+            return res.redirect(`/retro?device=${encodeURIComponent(ultimoDispositivo)}`);
         }
 
         // Respuesta JSON estándar para la interfaz Pro moderna
@@ -138,14 +138,21 @@ app.post('/api/transfer/generar', checkStatus, (req, res) => {
     res.json({ success: true, pin });
 });
 
-// RECLAMAR PIN EN HYPER TRANSFER
+// RECLAMAR PIN EN HYPER TRANSFER (¡PARADOJA DEL REINICIO RETRO SOLUCIONADA!)
 app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
     try {
         const { pin } = req.params;
         const transferencia = hyperTransfers[pin];
 
+        // Si el PIN no existe o ya expiró, le mandamos un HTML limpio para no romper la estética retro
         if (!transferencia || Date.now() > transferencia.expires) {
-            return res.status(404).json({ error: "Código Hyper Transfer inválido o expirado" });
+            return res.send(`
+                <body style="background:#0a0f1d; color:#e2e8f0; font-family:sans-serif; text-align:center; padding:40px 20px;">
+                    <h2 style="color:#ef4444;">❌ Código Inválido o Expirado</h2>
+                    <p style="color:#94a3b8;">El PIN de Hyper Transfer no existe en el radar o ya caducó.</p>
+                    <br><a href="/retro" style="color:#3b82f6; text-decoration:none; font-weight:bold;">Volver al Panel Retro</a>
+                </body>
+            `);
         }
 
         const publicId = transferencia.fileId;
@@ -153,19 +160,25 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
         const folder = parts[0];
         const id = parts[1];
 
+        // Borramos el PIN de inmediato para garantizar el uso único (Single-use)
         delete hyperTransfers[pin];
 
+        // Dejamos corriendo la tarea asíncrona de autodestrucción en Cloudinary (15 segundos)
         setTimeout(async () => {
             try {
                 let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
                 if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
                 if (result.result !== 'ok') result = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+                console.log(`💥 [Hyper Transfer] Archivo ${publicId} autodestruido con éxito.`);
             } catch (cErr) {
-                console.error("Error al ejecutar autodestrucción:", cErr);
+                console.error("Error en la autodestrucción en segundo plano:", cErr);
             }
         }, 15000);
 
-        res.json({ success: true, folder, id });
+        // --- EN VEZ DE ENVIAR JSON, REDIRIGIMOS CON LOS PARÁMETROS DE DESCARGA SEGURA ---
+        console.log(`⚡ [Hyper Transfer] PIN verificado. Redirigiendo a panel de descarga: ${folder}/${id}`);
+        return res.redirect(`/retro?dl_folder=${encodeURIComponent(folder)}&dl_id=${encodeURIComponent(id)}`);
+
     } catch (err) {
         res.status(500).json({ error: "Error interno en el distribuidor Hyper Transfer" });
     }
@@ -247,7 +260,7 @@ app.get('/retro', (req, res) => {
     res.sendFile(path.join(__dirname, 'index-retro.html'));
 });
 
-// NUEVA: Ruta específica para la pantalla de éxito en subidas manuales retro
+// Mantenemos la ruta por si acaso, aunque ahora redirigimos todo al archivo inteligente único /retro
 app.get('/retro-success', (req, res) => {
     console.log(`✅ [Ruta Fija] Desplegando index-retro-success.html.`);
     res.sendFile(path.join(__dirname, 'index-retro-success.html'));

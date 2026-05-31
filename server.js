@@ -225,39 +225,54 @@ app.get('/api/admin/control', (req, res) => {
 });
 
 // =========================================================================
-// 8. CEREBRO CLASIFICADOR ADAPTATIVO (MULTISISTEMA DE 3 CARAS)
+// 8. CEREBRO CLASIFICADOR ADAPTATIVO INTERCONECTADO (SISTEMA DE 4 VÍAS)
 // =========================================================================
 app.get('*', (req, res) => {
     try {
         const ua = req.headers['user-agent'] || "";
         const uaLower = ua.toLowerCase();
 
-        // Control de rutas de la API para evitar que caigan en respuestas HTML
+        // Control estricto para que los endpoints funcionales de la API no retornen HTML
         if (req.path.startsWith('/api/')) {
             return res.status(404).json({ error: "Endpoint no encontrado en el radar" });
         }
 
-        // --- CARA RETRO-ESENCIAL (Galaxy S legacy, Nokias, Legacy Androids) ---
-        const esAndroidViejo = /android [1-4]\./.test(uaLower);
+        // --- ENRUTAMIENTO MANUAL POR PARÁMETROS (Herramienta de desarrollo) ---
+        if (req.query.mode === 'retro') return res.sendFile(path.join(__dirname, 'index-retro.html'));
+        if (req.query.mode === 'transition') return res.sendFile(path.join(__dirname, 'index-transition.html'));
+        if (req.query.mode === 'unsupported') return res.sendFile(path.join(__dirname, 'index-unsupported.html'));
+
+        // --- 1. MÁQUINA RETRO-ESENCIAL (Filtro por UA directo de tus joyas clásicas) ---
+        const esAndroidViejo = /android [1-4]\./.test(uaLower) || uaLower.includes("version/4.");
         const esNokiaViejo = uaLower.includes("nokia") || uaLower.includes("symbian");
         const esHardwareRetro = /gt-i9100|gt-i9300|gt-i9500|gt-i9505|sm-g900|sm-n900/.test(uaLower);
 
         if (esAndroidViejo || esNokiaViejo || esHardwareRetro) {
-            console.log(`📟 [IA Cloud] Dispositivo Retro detectado. Sirviendo index-retro.html`);
+            console.log(`📟 [Clasificador] Hardware Retro Detectado. Desplegando index-retro.html`);
             return res.sendFile(path.join(__dirname, 'index-retro.html'));
         }
 
-        // --- CARA DE TRANSICIÓN (iOS Antiguos, Android v5.0 / v6.0) ---
+        // --- 2. SISTEMA DE VERIFICACIÓN DE INCOMPATIBILIDAD CRÍTICA ---
+        // Si el navegador no tiene firmas modernas (sec-ch-ua) y además usa motores obsoletos
+        const noTieneFirmaModerna = !req.headers['sec-ch-ua'];
+        const esMotorObsoleto = uaLower.includes("safari/534") || uaLower.includes("opera mini") || uaLower.includes("blackberry");
+
+        if (noTieneFirmaModerna && esMotorObsoleto) {
+            console.log(`⚠️ [Clasificador] Dispositivo roto o incompatible en el limbo. Desplegando index-unsupported.html`);
+            return res.sendFile(path.join(__dirname, 'index-unsupported.html'));
+        }
+
+        // --- 3. MÁQUINA DE TRANSICIÓN (iOS Antiguos, Android v5.0 / v6.0) ---
         const esiOSViejo = /iphone os [7-9]_/.test(uaLower) || uaLower.includes("iphone os 10_") || (uaLower.includes("ipad") && /os [7-9]_/.test(uaLower));
         const esAndroidMedio = /android [5-6]\./.test(uaLower);
 
         if (esiOSViejo || esAndroidMedio) {
-            console.log(`⚖️ [IA Cloud] Dispositivo de Transición detectado. Sirviendo index-transition.html`);
-            return res.sendFile(path.join(__dirname, 'index-retro.html'));
+            console.log(`⚖️ [Clasificador] Dispositivo en Transición. Desplegando index-transition.html`);
+            return res.sendFile(path.join(__dirname, 'index-transition.html'));
         }
 
-        // --- CARA ULTRA-MODERNA (PC Notebook, Dispositivos Actuales) ---
-        console.log(`🚀 [IA Cloud] Sistema Moderno detectado. Sirviendo index.html de forma nativa.`);
+        // --- 4. MÁQUINA ULTRA-MODERNA (PC Notebook, Equipos Actuales) ---
+        console.log(`🚀 [Clasificador] Dispositivo apto para interfaz Pro. Desplegando index.html`);
         res.sendFile(path.join(__dirname, 'index.html'));
 
     } catch (err) {

@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname))); 
 
 // --- CONFIGURACIÓN DE CREDENCIALES ---
-const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY; 
+const ADMIN_TOKEN = process.env.ADMIN_SECRET_KEY || "DELTARUNEGOD"; 
 let modoMantenimiento = false; 
 let tiempoMantenimiento = null; 
 let ultimoDispositivo = "Ninguno detectado"; 
@@ -20,8 +20,8 @@ let currentAd = { text: "¡Bienvenidos a Galaxy Cloud Familiar!", img: "", link:
 
 // BASE DE DATOS LOCAL PARA LA FAMILIA (Rápido, limpio y seguro)
 const CONTRASEÑAS_FAMILIA = {
-    "admin": ADMIN_TOKEN,                 // Tú con superpoderes
-    "familia": process.env.FAMILY_KEY || "DELTAGOD", // Contraseña común para tu familia
+    "admin": ADMIN_TOKEN,                                 // Tú con superpoderes
+    "familia": process.env.FAMILY_KEY || "DELTAGOD",      // Contraseña común para tu familia
 };
 
 cloudinary.config({ 
@@ -41,11 +41,12 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// --- MIDDLEWARE DE AUTORIZACIÓN (Mantenimiento + Filtro Familiar) ---
+// --- MIDDLEWARE DE AUTORIZACIÓN (Optimizado para Headers y Query Params) ---
 const checkStatus = (req, res, next) => {
-    const userToken = req.headers['x-admin-auth'];
+    // NUEVO: Busca el token en los headers o en la URL (?x-admin-auth=...) para imágenes/descargas
+    const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
     
-    // El "Jefe" puede ser el token de admin o la clave familiar
+    // Verificación de credenciales familiares o administrador
     const isFamily = (userToken === CONTRASEÑAS_FAMILIA["familia"]);
     const isBoss = (userToken === ADMIN_TOKEN && ADMIN_TOKEN !== undefined) || isFamily;
     
@@ -69,7 +70,7 @@ const checkStatus = (req, res, next) => {
     next();
 };
 
-// --- ENDPOINT NUEVO: LOGIN FAMILIAR ---
+// --- ENDPOINT: LOGIN FAMILIAR ---
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     
@@ -132,17 +133,18 @@ app.get('/api/files', checkStatus, async (req, res) => {
     }
 });
 
-// 5. GENERADOR DE QR (¡REPARADO!)
-// Apunta de manera dinámica a tu propia API de descarga forzada para evitar caídas
+// 5. GENERADOR DE QR (Inyecta el token en la URL de descarga para que funcione al escanear)
 app.get('/api/share/qr/:folder/:id', checkStatus, async (req, res) => {
     try {
         const { folder, id } = req.params;
+        const userToken = req.headers['x-admin-auth'] || req.query['x-admin-auth'];
         
-        // Genera la URL base (sirve tanto para Localhost como para tu dominio de Render automáticamente)
+        // Genera la URL base dinámica (sirve tanto para Localhost como para Render automáticamente)
         const hostBase = `${req.protocol}://${req.get('host')}`;
-        const downloadRoute = `${hostBase}/api/download/${folder}/${id}`;
+        // La URL incrustada en el QR llevará el token integrado para acceso instantáneo
+        const downloadRoute = `${hostBase}/api/download/${folder}/${id}?x-admin-auth=${userToken}`;
         
-        // Cambiado a qrserver para codificación limpia de caracteres especiales de Cloudinary
+        // QR via qrserver para codificación limpia de caracteres especiales de Cloudinary
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(downloadRoute)}`;
         
         res.json({ qr_url: qrUrl, original_url: downloadRoute });
@@ -162,7 +164,7 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
             crop: "fill",
             gravity: "auto",
             quality: "auto",
-            fetch_format: "auto", // Ultra-compatible con los navegadores del S2/S4
+            fetch_format: "auto", // Ultra-compatible con navegadores antiguos y modernos
             secure: true
         });
 
@@ -193,7 +195,7 @@ app.get('/api/ads', (req, res) => {
 });
 
 app.post('/api/ads/update', (req, res) => {
-    if (req.headers['x-admin-auth'] === 'DELTARUNEGOD') {
+    if (req.headers['x-admin-auth'] === ADMIN_TOKEN) {
         currentAd = req.body;
         res.send("OK");
     } else {
@@ -252,7 +254,6 @@ app.get('/api/admin/toggle-maint', (req, res) => {
 });
 
 // --- SISTEMA ANTIFALLOS DE RUTAS ---
-// Captura cualquier link roto o mal escrito en la URL y lo manda suavemente al index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

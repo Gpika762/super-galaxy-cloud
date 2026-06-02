@@ -104,7 +104,20 @@
         .modal-body-dark {
             background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(255,255,255,0.15);
             padding: 25px; border-radius: 22px; text-align: center; color: white;
-            max-width: 310px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box;
+            max-width: 340px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box;
+        }
+
+        /* --- ESTILOS COMPONENTES MULTIMEDIA PRO --- */
+        .preview-content-area {
+            margin: 15px 0; background: #070a12; border-radius: 12px;
+            padding: 10px; border: 1px solid rgba(255,255,255,0.05);
+            display: none; max-height: 250px; overflow: auto;
+        }
+        .preview-audio { width: 100%; margin-top: 5px; }
+        .preview-image { max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: contain; }
+        .preview-text { 
+            text-align: left; font-family: monospace; font-size: 11px; 
+            color: var(--success); white-space: pre-wrap; margin: 0; padding: 5px;
         }
     </style>
 </head>
@@ -157,20 +170,35 @@
 </div>
 
 <div id="hyper-recibir-modal" class="galaxy-modal">
-    <div class="modal-body-dark" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
+    <div class="modal-body-dark" id="modal-receiver-body" style="border-color: var(--hyper-purple); box-shadow: 0 0 20px var(--hyper-glow);">
         <h3 style="margin-top: 0; font-weight: 400; color: var(--hyper-purple); text-shadow: 0 0 8px var(--hyper-glow);">SINTONIZAR HIPER-PUENTE</h3>
-        <p style="font-size: 12px; color: #bbb; margin-bottom: 15px;">Ingresa el PIN de 4 dígitos generado para descargar y autodestruir el archivo.</p>
-        <input type="number" id="hyper-pin-input" placeholder="Ej: 4821" pattern="[0-9]*" inputmode="numeric" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4)" style="
-            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
-            border: 1px solid var(--hyper-purple); background: rgba(0,0,0,0.6);
-            color: white; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 4px; box-sizing: border-box; outline: none;">
-        <button onclick="procesarReclamoHyper()" style="
-            width: 100%; padding: 12px; background: var(--hyper-purple); color: white;
-            border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
-            cursor: pointer; box-shadow: 0 0 12px var(--hyper-glow); margin-bottom: 10px;">
-            Enganchar Descarga 📥
-        </button>
-        <button onclick="cerrarModalRecibirHyper()" style="padding:10px 20px; border-radius:10px; border:none; background: transparent; color:#aaa; cursor:pointer; width: 100%;">Cancelar</button>
+        
+        <div id="hyper-input-zone">
+            <p style="font-size: 12px; color: #bbb; margin-bottom: 15px;">Ingresa el PIN de 4 dígitos generado para descargar y autodestruir el archivo.</p>
+            <input type="number" id="hyper-pin-input" placeholder="Ej: 4821" pattern="[0-9]*" inputmode="numeric" oninput="if(this.value.length > 4) this.value = this.value.slice(0,4)" style="
+                width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px;
+                border: 1px solid var(--hyper-purple); background: rgba(0,0,0,0.6);
+                color: white; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 4px; box-sizing: border-box; outline: none;">
+            <button onclick="procesarReclamoHyper()" style="
+                width: 100%; padding: 12px; background: var(--hyper-purple); color: white;
+                border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
+                cursor: pointer; box-shadow: 0 0 12px var(--hyper-glow); margin-bottom: 10px;">
+                Enganchar Descarga 📥
+            </button>
+        </div>
+
+        <div id="hyper-preview-zone" style="display: none;">
+            <p id="preview-file-name" style="font-size: 13px; font-weight: bold; color: #eee; word-break: break-all;"></p>
+            
+            <div class="preview-content-area" id="box-img"><img id="view-img" class="preview-image" src=""></div>
+            <div class="preview-content-area" id="box-audio"><audio id="view-audio" class="preview-audio" controls></audio></div>
+            <div class="preview-content-area" id="box-text"><pre id="view-text" class="preview-text"></pre></div>
+
+            <p style="font-size: 11px; color: var(--error); margin-top: 10px;">⚠️ El archivo se autodestruirá en la nube en 15 segundos.</p>
+            <a id="hyper-download-btn" href="#" class="btn-dl" style="width:100%; padding:12px; box-sizing:border-box; margin-top:10px;">Descargar Copia Física 💾</a>
+        </div>
+
+        <button onclick="cerrarModalRecibirHyper()" id="btn-cancel-hyper" style="padding:10px 20px; border-radius:10px; border:none; background: transparent; color:#aaa; cursor:pointer; width: 100%; margin-top: 10px;">Cancelar</button>
     </div>
 </div>
 
@@ -246,11 +274,23 @@
 
     function abrirModalRecibirHyper() {
         document.getElementById('hyper-pin-input').value = "";
+        document.getElementById('hyper-input-zone').style.display = 'block';
+        document.getElementById('hyper-preview-zone').style.display = 'none';
         document.getElementById('hyper-recibir-modal').style.display = 'flex';
+        
+        // Limpiar visores previos
+        document.getElementById('box-img').style.display = 'none';
+        document.getElementById('box-audio').style.display = 'none';
+        document.getElementById('box-text').style.display = 'none';
+        document.getElementById('view-audio').pause();
     }
 
     function cerrarModalGenerarHyper() { document.getElementById('hyper-generar-modal').style.display = 'none'; }
-    function cerrarModalRecibirHyper() { document.getElementById('hyper-recibir-modal').style.display = 'none'; }
+    
+    function cerrarModalRecibirHyper() { 
+        document.getElementById('view-audio').pause();
+        document.getElementById('hyper-recibir-modal').style.display = 'none'; 
+    }
 
     async function procesarReclamoHyper() {
         const pin = document.getElementById('hyper-pin-input').value;
@@ -260,25 +300,58 @@
         }
 
         try {
-            const res = await fetch(`${API}/transfer/reclamar/${pin}`);
+            // Pasamos ?source=pro para recibir la respuesta JSON en vez de una redirección HTML directa
+            const res = await fetch(`${API}/transfer/reclamar/${pin}?source=pro`);
+            
+            if (!res.ok) {
+                const errData = await res.json();
+                alert("Fallo de puente: " + errData.error);
+                return;
+            }
+
             const data = await res.json();
 
             if (data.success) {
-                cerrarModalRecibirHyper();
                 const downloadUrl = `${API}/download/${data.folder}/${data.id}`;
-                const linkTemporal = document.createElement('a');
-                linkTemporal.href = downloadUrl;
-                document.body.appendChild(linkTemporal);
-                linkTemporal.click();
-                linkTemporal.remove();
                 
-                alert("¡Puente enganchado! El archivo se está descargando y se eliminará de la nube en 15 segundos.");
+                // Ocultamos el teclado/input y pasamos a la fase de visualización Pro
+                document.getElementById('hyper-input-zone').style.display = 'none';
+                document.getElementById('hyper-preview-zone').style.display = 'block';
+                
+                // Extraer extensión del archivo para activar su respectivo visor
+                const fileIdLower = data.publicId.toLowerCase();
+                
+                if (fileIdLower.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+                    document.getElementById('view-img').src = downloadUrl;
+                    document.getElementById('box-img').style.display = 'block';
+                } 
+                else if (fileIdLower.match(/\.(mp3|wav|ogg|m4a)$/)) {
+                    document.getElementById('view-audio').src = downloadUrl;
+                    document.getElementById('box-audio').style.display = 'block';
+                    document.getElementById('view-audio').play().catch(() => {});
+                } 
+                else if (fileIdLower.match(/\.(txt|json|log|ini|gml)$/)) {
+                    try {
+                        const textRes = await fetch(downloadUrl);
+                        const textContent = await textRes.text();
+                        document.getElementById('view-text').innerText = textContent;
+                        document.getElementById('box-text').style.display = 'block';
+                    } catch (e) {
+                        document.getElementById('view-text').innerText = "[No se pudo previsualizar el archivo de texto]";
+                        document.getElementById('box-text').style.display = 'block';
+                    }
+                }
+
+                // Asignar el enlace final al botón de descarga física
+                document.getElementById('hyper-download-btn').href = downloadUrl;
+                document.getElementById('btn-cancel-hyper').innerText = "Cerrar Panel";
+                
+                // Recargar la lista de fondo ya que el archivo fue removido
                 setTimeout(loadFiles, 2000);
-            } else {
-                alert("Fallo de puente: " + data.error);
             }
         } catch (err) {
             console.error("Fallo de conexión en el reclamo", err);
+            alert("Error de enlace estelar.");
         }
     }
 
@@ -312,7 +385,6 @@
         loadFiles();
     }
 
-    // Ejecución inicial limpia e inmediata
     loadFiles();
     setInterval(loadFiles, 25000);
 </script>

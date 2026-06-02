@@ -203,7 +203,8 @@
 </div>
 
 <script>
-    const API = "/api";
+    // Si usas puertos distintos en local, puedes cambiarlo por "http://localhost:3000/api"
+    const API = "/api"; 
 
     async function loadFiles() {
         try {
@@ -231,7 +232,7 @@
                 item.innerHTML = `
                     <div class="file-info">
                         <div class="preview" style="width:40px; height:40px; background:#222; border-radius:10px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-                            ${isImage ? `<img src="${API}/preview/${folder}/${id}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
+                            ${isImage ? `<img src="${API}/download/${folder}/${id}" style="width:100%; height:100%; object-fit:cover;">` : "📄"}
                         </div>
                         <div class="file-name">${f.name}<br><small style="color:#666">${f.size}</small></div>
                     </div>
@@ -249,7 +250,7 @@
             document.getElementById('bar-fill').style.width = perc + "%";
             document.getElementById('storage-text').innerText = files.length + " / 500 archivos";
 
-        } catch (e) { console.error("Error en la conexión estelar"); }
+        } catch (e) { console.error("Error en la conexión estelar", e); }
     }
 
     async function generarHyperTransfer(fileId) {
@@ -277,6 +278,7 @@
         document.getElementById('hyper-input-zone').style.display = 'block';
         document.getElementById('hyper-preview-zone').style.display = 'none';
         document.getElementById('hyper-recibir-modal').style.display = 'flex';
+        document.getElementById('btn-cancel-hyper').innerText = "Cancelar";
         
         // Limpiar visores previos
         document.getElementById('box-img').style.display = 'none';
@@ -300,8 +302,7 @@
         }
 
         try {
-            // Pasamos ?source=pro para recibir la respuesta JSON en vez de una redirección HTML directa
-            const res = await fetch(`${API}/transfer/reclamar/${pin}?source=pro`);
+            const res = await fetch(`${API}/transfer/reclamar/${pin}`);
             
             if (!res.ok) {
                 const errData = await res.json();
@@ -314,13 +315,16 @@
             if (data.success) {
                 const downloadUrl = `${API}/download/${data.folder}/${data.id}`;
                 
+                // Setear nombre de archivo en la preview
+                document.getElementById('preview-file-name').innerText = data.publicId;
+
                 // Ocultamos el teclado/input y pasamos a la fase de visualización Pro
                 document.getElementById('hyper-input-zone').style.display = 'none';
                 document.getElementById('hyper-preview-zone').style.display = 'block';
                 
-                // Extraer extensión del archivo para activar su respectivo visor
                 const fileIdLower = data.publicId.toLowerCase();
                 
+                // Activar visores dinámicos según extensión
                 if (fileIdLower.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
                     document.getElementById('view-img').src = downloadUrl;
                     document.getElementById('box-img').style.display = 'block';
@@ -385,6 +389,7 @@
         loadFiles();
     }
 
+    // Inicialización automática
     loadFiles();
     setInterval(loadFiles, 25000);
 </script>

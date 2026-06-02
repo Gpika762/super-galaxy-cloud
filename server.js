@@ -44,6 +44,7 @@ cloudinary.config({
   secure: true 
 });
 
+// El resource_type: 'auto' es clave aquí para que Cloudinary acepte PNG, MP3 y APKs sin discriminar
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -91,8 +92,13 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
             return res.redirect(`/retro?device=${encodeURIComponent(ultimoDispositivo)}`);
         }
 
-        // Respuesta JSON estándar para la interfaz Pro moderna
-        res.status(200).json({ success: true, url: req.file.path, device: ultimoDispositivo });
+        // Respuesta JSON estándar para la interfaz Pro moderna (Incluye originalname)
+        res.status(200).json({ 
+            success: true, 
+            url: req.file.path, 
+            device: ultimoDispositivo,
+            name: req.file.originalname 
+        });
     } catch (err) {
         if (req.query.redirect === 'true') {
             return res.send(`<h2>Error en la carga: ${err.message}</h2><a href="/retro">Volver a intentar</a>`);
@@ -138,14 +144,17 @@ app.post('/api/transfer/generar', checkStatus, (req, res) => {
     res.json({ success: true, pin });
 });
 
-// RECLAMAR PIN EN HYPER TRANSFER (¡PARADOJA DEL REINICIO RETRO SOLUCIONADA!)
+// RECLAMAR PIN EN HYPER TRANSFER (¡HÍBRIDO INTELIGENTE PRO / RETRO!)
 app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
     try {
         const { pin } = req.params;
         const transferencia = hyperTransfers[pin];
 
-        // Si el PIN no existe o ya expiró, le mandamos un HTML limpio para no romper la estética retro
+        // Si el PIN no existe o ya expiró
         if (!transferencia || Date.now() > transferencia.expires) {
+            if (req.query.source === 'pro') {
+                return res.status(400).json({ error: "El PIN no existe en el radar o ya caducó." });
+            }
             return res.send(`
                 <body style="background:#0a0f1d; color:#e2e8f0; font-family:sans-serif; text-align:center; padding:40px 20px;">
                     <h2 style="color:#ef4444;">❌ Código Inválido o Expirado</h2>
@@ -175,12 +184,21 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
             }
         }, 15000);
 
-        // --- EN VEZ DE ENVIAR JSON, REDIRIGIMOS CON LOS PARÁMETROS DE DESCARGA SEGURA ---
-        console.log(`⚡ [Hyper Transfer] PIN verificado. Redirigiendo a panel de descarga: ${folder}/${id}`);
+        // Si la petición viene desde la interfaz Pro moderna, respondemos con la data limpia en JSON
+        if (req.query.source === 'pro') {
+            console.log(`⚡ [Hyper Transfer] PIN verificado para interfaz Pro. Enviando JSON estructurado.`);
+            return res.json({ success: true, folder, id, publicId });
+        }
+
+        // Si no viene de la interfaz Pro, asumimos entorno Retro y hacemos la redirección clásica por URL
+        console.log(`⚡ [Hyper Transfer] PIN verificado. Redirigiendo equipo retro a panel de descarga: ${folder}/${id}`);
         return res.redirect(`/retro?dl_folder=${encodeURIComponent(folder)}&dl_id=${encodeURIComponent(id)}`);
 
     } catch (err) {
-        res.status(500).json({ error: "Error interno en el distribuidor Hyper Transfer" });
+        if (req.query.source === 'pro') {
+            return res.status(500).json({ error: "Error interno en el distribuidor Hyper Transfer" });
+        }
+        res.status(500).send("Error interno en el distribuidor Hyper Transfer");
     }
 });
 

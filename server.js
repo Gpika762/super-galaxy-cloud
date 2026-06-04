@@ -89,12 +89,10 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
         else if (ua.includes("Android")) ultimoDispositivo = "Móvil Android";
         else ultimoDispositivo = "Dispositivo Familiar";
 
-        // Ajustado para que el archivo único index-retro reciba el badge de éxito por URL
         if (req.query.redirect === 'true') {
             return res.redirect(`/retro?device=${encodeURIComponent(ultimoDispositivo)}`);
         }
 
-        // Respuesta JSON estándar para la interfaz Pro moderna (Incluye originalname)
         res.status(200).json({ 
             success: true, 
             url: req.file.path, 
@@ -102,9 +100,6 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
             name: req.file.originalname 
         });
     } catch (err) {
-        // 🔥 LOG PARA MONITOREAR QUÉ ROMPE LA SUBIDA DE MÚSICA EN RENDER
-        console.error("💥 Error crítico detectado en la subida:", err);
-
         if (req.query.redirect === 'true') {
             return res.send(`<h2>Error en la carga: ${err.message}</h2><a href="/retro">Volver a intentar</a>`);
         }
@@ -149,7 +144,7 @@ app.post('/api/transfer/generar', checkStatus, (req, res) => {
     res.json({ success: true, pin });
 });
 
-// RECLAMAR PIN EN HYPER TRANSFER (¡HÍBRIDO INTELIGENTE PRO / RETRO!)
+// RECLAMAR PIN EN HYPER TRANSFER
 app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
     try {
         const { pin } = req.params;
@@ -187,11 +182,9 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
         }, 15000);
 
         if (req.query.source === 'pro') {
-            console.log(`⚡ [Hyper Transfer] PIN verificado para interfaz Pro. Enviando JSON estructurado.`);
             return res.json({ success: true, folder, id, publicId });
         }
 
-        console.log(`⚡ [Hyper Transfer] PIN verificado. Redirigiendo equipo retro a panel de descarga: ${folder}/${id}`);
         return res.redirect(`/retro?dl_folder=${encodeURIComponent(folder)}&dl_id=${encodeURIComponent(id)}`);
 
     } catch (err) {
@@ -229,28 +222,23 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     }
 });
 
-// 🔥 DESCARGA FORZADA MULTI-COMPATIBLE PARCHADA
-app.get('/api/download/:folder/:id', checkStatus, async (req, res) => {
+// 📥 DESCARGA FORZADA LIBRE ORIGINAL RESTAURADA (Detecta dinámicamente el tipo por query opcional si es .mp3)
+app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
-        console.log(`📥 [Descarga] Generando enlaces multiplexados para: ${publicId}`);
+        
+        // Usamos la configuración por defecto que te funcionaba perfecto para imágenes
+        let opciones = { flags: "attachment", secure: true };
+        
+        // Si desde el frontend para música le pasas un ?type=video, Cloudinary sabrá procesar el .mp3 sin romper los PNG
+        if (req.query.type) {
+            opciones.resource_type = req.query.type;
+        }
 
-        // Cloudinary maneja la música bajo el resource_type 'video' o 'raw'. 
-        // Creamos variantes para romper las restricciones de extensión y tipo de recurso.
-        const urlVideo = cloudinary.url(publicId, { resource_type: 'video', flags: "attachment", secure: true });
-        const urlRaw = cloudinary.url(publicId, { resource_type: 'raw', flags: "attachment", secure: true });
-        const urlImage = cloudinary.url(publicId, { resource_type: 'image', flags: "attachment", secure: true });
-
-        let finalUrl = urlVideo; // Por defecto asumimos estructura de audio/video (.mp3)
-
-        if (req.query.type === 'raw') finalUrl = urlRaw;
-        else if (req.query.type === 'image') finalUrl = urlImage;
-
-        console.log(`🚀 [Descarga] Desviando tráfico al CDN: ${finalUrl}`);
-        res.redirect(finalUrl);
+        const downloadUrl = cloudinary.url(publicId, opciones);
+        res.redirect(downloadUrl);
     } catch (err) {
-        console.error("💥 Error en el enrutador de descargas:", err);
-        res.status(500).send("Error interno al descargar");
+        res.status(500).send("Error al descargar");
     }
 });
 
@@ -392,5 +380,6 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// --- INICIO DEL PUERTO DE LANZAMIENTO ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Nube Libre Activa en Puerto ${PORT}`));

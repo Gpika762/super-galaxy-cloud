@@ -268,6 +268,84 @@ app.get('/api/admin/control', (req, res) => {
     res.json({ mantenimiento: modoMantenimiento });
 });
 
+
+// =========================================================================
+//  🆕 MODULO DE RADAR WI-FI INTEGRADO CON AUTO-DETECCIÓN DE HARDWARE
+// =========================================================================
+
+let clientesDisponibles = {}; // Mapeo dinámico de celulekes activos
+
+// Canal en tiempo real (SSE) para que el teléfono escuche las órdenes de la PC
+app.get('/api/wifi/escuchar', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    // El radar lee la firma (User-Agent) del navegador del celular automáticamente
+    const ua = req.headers['user-agent'] || "";
+    let modeloDetectado = "Dispositivo Desconocido";
+
+    if (ua.includes("GT-I9100")) modeloDetectado = "Samsung Galaxy S2";
+    else if (ua.includes("GT-I9300")) modeloDetectado = "Samsung Galaxy S3";
+    else if (ua.includes("GT-I9505") || ua.includes("GT-I9500")) modeloDetectado = "Samsung Galaxy S4";
+    else if (ua.includes("SM-G900")) modeloDetectado = "Samsung Galaxy S5";
+    else if (ua.includes("SM-N900")) modeloDetectado = "Samsung Galaxy Note 3";
+    else if (ua.includes("Windows")) modeloDetectado = "Notebook (PC)";
+    else if (ua.includes("Android")) modeloDetectado = "Móvil Android";
+    else modeloDetectado = "Dispositivo Familiar";
+
+    // Generamos un identificador único para la sesión actual del teléfono
+    const idDispositivo = "dev_" + Math.floor(1000 + Math.random() * 9000);
+    
+    // Lo montamos al radar activo
+    clientesDisponibles[idDispositivo] = { nombre: modeloDetectado, res: res };
+    console.log(`📡 [Radar Wi-Fi] Dispositivo detectado y sintonizado: ${modeloDetectado} (${idDispositivo})`);
+
+    // Le devolvemos el veredicto del escaneo al teléfono
+    res.write(`data: ${JSON.stringify({ tipo: "identificacion", modelo: modeloDetectado })}\n\n`);
+
+    // Loop de mantenimiento de conexión activa (Evita caídas en navegadores viejos)
+    const pingInterval = setInterval(() => {
+        res.write(': ping\n\n');
+    }, 15000);
+
+    req.on('close', () => {
+        clearInterval(pingInterval);
+        delete clientesDisponibles[idDispositivo];
+        console.log(`❌ [Radar Wi-Fi] Fuera de cobertura local: ${modeloDetectado}`);
+    });
+});
+
+// Endpoint para que la PC escanee y vea la lista de celus en órbita
+app.get('/api/wifi/dispositivos', (req, res) => {
+    const lista = Object.keys(clientesDisponibles).map(id => ({
+        id: id,
+        nombre: clientesDisponibles[id].nombre
+    }));
+    res.json(lista);
+});
+
+// Envío exclusivo al dispositivo seleccionado mediante transferencia Wi-Fi
+app.post('/api/wifi/enviar', (req, res) => {
+    const { targetId, texto } = req.body;
+    if (!targetId || !texto) return res.status(400).json({ error: "Parámetros insuficientes para el envío" });
+
+    const targetCelular = clientesDisponibles[targetId];
+    if (!targetCelular) return res.status(404).json({ error: "El dispositivo ya no responde en el radar local." });
+
+    // Se empuja la ráfaga de datos al canal exclusivo de ese celular
+    targetCelular.res.write(`data: ${JSON.stringify({ tipo: "texto", texto: texto })}\n\n`);
+    res.json({ success: true, message: "Paquete inyectado. Esperando confirmación táctil..." });
+});
+
+// Ruta fija para cargar el receptor en el celular
+app.get('/escuchar', (req, res) => {
+    console.log(`📱 [Ruta Fija] Desplegando pantalla del receptor radar (escuchar.html)`);
+    res.sendFile(path.join(__dirname, 'escuchar.html'));
+});
+
+
 // =========================================================================
 // 8. ENRUTAMIENTO CONTROLADO POR RUTAS FIJAS (SISTEMA DETERMINISTA POR URL)
 // =========================================================================

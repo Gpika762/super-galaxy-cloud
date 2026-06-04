@@ -75,30 +75,6 @@
         .storage-bar { width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden; }
         .storage-fill { width: 0%; height: 100%; background: var(--aero-blue); transition: 1s ease-in-out; }
 
-        /* --- NUEVOS ESTILOS PARA EL RADAR WI-FI --- */
-        .radar-card {
-            background: rgba(0, 148, 255, 0.04); border-radius: 15px;
-            padding: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 148, 255, 0.2);
-        }
-        .radar-title { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--aero-blue); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-        .radar-pulse-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); animation: radarPulse 1.8s infinite alternate; }
-        @keyframes radarPulse { 0% { opacity: 0.3; } 100% { opacity: 1; transform: scale(1.1); } }
-        
-        .radar-select {
-            width: 100%; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.15); color: white; font-size: 12px; outline: none; margin-bottom: 10px;
-        }
-        .radar-input-group { display: flex; gap: 8px; }
-        .radar-text-input {
-            flex-grow: 1; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.15); color: white; font-size: 12px; outline: none;
-        }
-        .btn-radar-send {
-            background: var(--aero-blue); border: none; color: white; padding: 0 15px; 
-            border-radius: 10px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 0 10px rgba(0, 148, 255, 0.4);
-        }
-        .btn-radar-send:disabled { background: #333; color: #777; box-shadow: none; cursor: not-allowed; }
-
         .upload-card {
             background: rgba(255,255,255,0.03); border: 1.5px dashed rgba(255,255,255,0.3);
             border-radius: 20px; padding: 30px 10px; text-align: center;
@@ -110,7 +86,7 @@
             display: flex; align-items: center; justify-content: space-between;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        .file-info { display: flex; align-items: center; gap: 10px; width: 55%; }
+        .file-info { display: flex; align-items: center; gap: 10px; width: 48%; }
         .file-name { font-size: 13px; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .actions { display: flex; gap: 6px; align-items: center; }
         .btn-dl { background: var(--aero-blue); color: white; text-decoration: none; padding: 8px 10px; border-radius: 8px; font-size: 10px; font-weight: bold; display: inline-flex; justify-content: center; align-items: center; }
@@ -129,6 +105,13 @@
             background: rgba(15, 15, 25, 0.95); border: 1px solid rgba(255,255,255,0.15);
             padding: 25px; border-radius: 22px; text-align: center; color: white;
             max-width: 340px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box;
+        }
+
+        /* Selector dentro del modal */
+        .radar-select {
+            width: 100%; padding: 12px; border-radius: 12px; background: rgba(0,0,0,0.6);
+            border: 1px solid var(--aero-blue); color: white; font-size: 14px; outline: none; margin: 15px 0;
+            text-align: center;
         }
 
         /* --- ESTILOS COMPONENTES MULTIMEDIA PRO --- */
@@ -166,20 +149,6 @@
         <div class="storage-bar"><div class="storage-fill" id="bar-fill"></div></div>
     </div>
 
-    <div class="radar-card">
-        <div class="radar-title">
-            <span>📡 Radar Wi-Fi Local</span>
-            <div class="radar-pulse-dot"></div>
-        </div>
-        <select id="radar-dispositivos" class="radar-select">
-            <option value="">Buscando celulekes en la red...</option>
-        </select>
-        <div class="radar-input-group">
-            <input type="text" id="radar-mensaje" class="radar-text-input" placeholder="Escribe un texto o enlace para enviar...">
-            <button onclick="enviarTextoPorRadar()" id="btn-radar-send" class="btn-radar-send" disabled>Disparar</button>
-        </div>
-    </div>
-
     <div class="upload-card" onclick="document.getElementById('file-input').click()">
         <div style="font-size: 30px; margin-bottom: 10px;">☁️</div>
         <div style="font-size: 14px; font-weight: bold;">Subir a la Nube</div>
@@ -188,6 +157,26 @@
     </div>
 
     <div class="file-list" id="list"></div>
+</div>
+
+<div id="radar-modal" class="galaxy-modal">
+    <div class="modal-body-dark" style="border-color: var(--aero-blue); box-shadow: 0 0 20px var(--aero-glow);">
+        <h3 style="margin-top: 0; font-weight: 400; color: var(--aero-blue); text-shadow: 0 0 8px var(--aero-glow);">📡 TRANSMISIÓN RADAR</h3>
+        <p style="font-size: 12px; color: #bbb; margin-bottom: 5px;">Selecciona el celuleke objetivo activo en tu Wi-Fi para inyectarle el archivo:</p>
+        <p id="radar-filename-display" style="font-size: 11px; color: var(--success); font-family: monospace; word-break: break-all; margin: 0;"></p>
+        
+        <select id="radar-modal-dispositivos" class="radar-select">
+            <option value="">Buscando dispositivos activos...</option>
+        </select>
+
+        <button onclick="ejecutarDisparoRadar()" id="btn-radar-disparar" style="
+            width: 100%; padding: 12px; background: var(--aero-blue); color: white;
+            border: none; border-radius: 12px; font-size: 14px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 0 12px var(--aero-glow); margin-bottom: 10px;" disabled>
+            Disparar Archivo 🚀
+        </button>
+        <button onclick="cerrarModalRadar()" style="padding:10px 20px; border-radius:10px; border:none; background: transparent; color:#aaa; cursor:pointer; width: 100%;">Cancelar</button>
+    </div>
 </div>
 
 <div id="qr-modal" class="galaxy-modal">
@@ -241,73 +230,9 @@
 
 <script>
     const API = "/api"; 
+    let archivoSeleccionadoParaRadar = null;
 
-    // 📡 LÓGICA DE ACTUALIZACIÓN DEL RADAR WI-FI (CLIENTE)
-    async function actualizarRadarDispositivos() {
-        try {
-            const res = await fetch(`${API}/wifi/dispositivos`);
-            const dispositivos = await res.json();
-            const selector = document.getElementById('radar-dispositivos');
-            const botonEnviar = document.getElementById('btn-radar-send');
-            
-            // Guardamos el ID seleccionado para que no se borre al refrescar la lista
-            const seleccionadoPrevio = selector.value;
-
-            if (dispositivos.length === 0) {
-                selector.innerHTML = '<option value="">No hay celulekes en el radar...</option>';
-                botonEnviar.disabled = true;
-                return;
-            }
-
-            selector.innerHTML = '<option value="">-- Selecciona un Dispositivo --</option>';
-            dispositivos.forEach(dev => {
-                const option = document.createElement('option');
-                option.value = dev.id;
-                option.text = `${dev.nombre} (${dev.id})`;
-                if (dev.id === seleccionadoPrevio) option.selected = true;
-                selector.appendChild(option);
-            });
-
-            botonEnviar.disabled = false;
-        } catch (e) {
-            console.error("Error escaneando el espacio local Wi-Fi", e);
-        }
-    }
-
-    // DISPARAR TEXTO POR WI-FI AL OBJETIVO
-    async function enviarTextoPorRadar() {
-        const targetId = document.getElementById('radar-dispositivos').value;
-        const texto = document.getElementById('radar-mensaje').value;
-
-        if (!targetId) {
-            alert("Selecciona un celuleke del radar primero.");
-            return;
-        }
-        if (!texto.trim()) {
-            alert("Escribe algún texto para transmitir.");
-            return;
-        }
-
-        try {
-            const res = await fetch(`${API}/wifi/enviar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetId, texto })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                alert("🚀 " + data.message);
-                document.getElementById('radar-mensaje').value = ""; // Limpiamos la barra de envío
-            } else {
-                alert("Error de radar: " + data.error);
-            }
-        } catch (err) {
-            console.error("Error en disparo Wi-Fi", err);
-        }
-    }
-
-    // Funciones Base de Carga de Archivos
+    // CARGAR ARCHIVOS DE LA NUBE Y RENDERIZAR BOTONES
     async function loadFiles() {
         try {
             const res = await fetch(`${API}/files`);
@@ -339,6 +264,7 @@
                         <div class="file-name">${f.name}<br><small style="color:#666">${f.size}</small></div>
                     </div>
                     <div class="actions">
+                        <button onclick="abrirModalRadar('${f.id}', '${f.name}')" class="btn-hyper-action" title="Disparar por Radar Wi-Fi" style="color: var(--aero-blue);">📡</button>
                         <button onclick="generarHyperTransfer('${f.id}')" class="btn-hyper-action" title="Hyper Transfer">⚡</button>
                         <button onclick="showQR('${folder}', '${id}')" style="background:none; border:none; cursor:pointer; font-size:16px;">📱</button>
                         <a href="${API}/download/${folder}/${id}" class="btn-dl">📥</a>
@@ -355,6 +281,79 @@
         } catch (e) { console.error("Error en la conexión estelar", e); }
     }
 
+    // 📡 CONTROL DEL MODAL DE RADAR
+    function abrirModalRadar(fileId, fileName) {
+        archivoSeleccionadoParaRadar = fileId;
+        document.getElementById('radar-filename-display').innerText = fileName;
+        document.getElementById('radar-modal').style.display = 'flex';
+        actualizarRadarDispositivos();
+    }
+
+    function cerrarModalRadar() {
+        document.getElementById('radar-modal').style.display = 'none';
+        archivoSeleccionadoParaRadar = null;
+    }
+
+    // RASTREAR DISPOSITIVOS EN ESCUCHA ACTIVA
+    async function actualizarRadarDispositivos() {
+        try {
+            const res = await fetch(`${API}/wifi/dispositivos`);
+            const dispositivos = await res.json();
+            const selector = document.getElementById('radar-modal-dispositivos');
+            const botonDisparar = document.getElementById('btn-radar-disparar');
+            
+            const seleccionadoPrevio = selector.value;
+
+            if (dispositivos.length === 0) {
+                selector.innerHTML = '<option value="">No hay celulekes en escucha activa...</option>';
+                botonDisparar.disabled = true;
+                return;
+            }
+
+            selector.innerHTML = '<option value="">-- Selecciona un Dispositivo --</option>';
+            dispositivos.forEach(dev => {
+                const option = document.createElement('option');
+                option.value = dev.id;
+                option.text = `${dev.nombre} (${dev.modelo || 'Móvil'})`;
+                if (dev.id === seleccionadoPrevio) option.selected = true;
+                selector.appendChild(option);
+            });
+
+            botonDisparar.disabled = false;
+        } catch (e) {
+            console.error("Error escaneando el espacio local Wi-Fi", e);
+        }
+    }
+
+    // EJECUTAR LANZAMIENTO VIA RADAR AL BACKEND
+    async function ejecutarDisparoRadar() {
+        const targetId = document.getElementById('radar-modal-dispositivos').value;
+
+        if (!targetId || !archivoSeleccionadoParaRadar) {
+            alert("Selecciona un celuleke del radar primero.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/wifi/enviar-archivo`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetId, fileId: archivoSeleccionadoParaRadar })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert("🚀 Archivo eyectado con éxito a la terminal.");
+                cerrarModalRadar();
+            } else {
+                alert("Error de radar: " + data.error);
+            }
+        } catch (err) {
+            console.error("Error en disparo Wi-Fi", err);
+        }
+    }
+
+    // Lógica Base Existente de Transferencias Hyper y UI
     async function generarHyperTransfer(fileId) {
         try {
             const res = await fetch(`${API}/transfer/generar`, {
@@ -363,16 +362,11 @@
                 body: JSON.stringify({ fileId: fileId })
             });
             const data = await res.json();
-
             if (data.success) {
                 document.getElementById('hyper-pin-display').innerText = data.pin;
                 document.getElementById('hyper-generar-modal').style.display = 'flex';
-            } else {
-                alert("Error Hyper Transfer: " + data.error);
-            }
-        } catch (err) {
-            console.error("Error al emitir hiper-puente", err);
-        }
+            } else { alert("Error Hyper Transfer: " + data.error); }
+        } catch (err) { console.error("Error al emitir hiper-puente", err); }
     }
 
     function abrirModalRecibirHyper() {
@@ -381,7 +375,6 @@
         document.getElementById('hyper-preview-zone').style.display = 'none';
         document.getElementById('hyper-recibir-modal').style.display = 'flex';
         document.getElementById('btn-cancel-hyper').innerText = "Cancelar";
-        
         document.getElementById('box-img').style.display = 'none';
         document.getElementById('box-audio').style.display = 'none';
         document.getElementById('box-text').style.display = 'none';
@@ -396,41 +389,30 @@
 
     async function procesarReclamoHyper() {
         const pin = document.getElementById('hyper-pin-input').value;
-        if (!pin || pin.length !== 4) {
-            alert("Escribe el PIN completo de 4 dígitos");
-            return;
-        }
-
+        if (!pin || pin.length !== 4) { alert("Escribe el PIN completo de 4 dígitos"); return; }
         try {
             const res = await fetch(`${API}/transfer/reclamar/${pin}?source=pro`);
-            
             if (!res.ok) {
                 const errData = await res.json();
                 alert("Fallo de puente: " + errData.error);
                 return;
             }
-
             const data = await res.json();
-
             if (data.success) {
                 const downloadUrl = `${API}/download/${data.folder}/${data.id}`;
                 document.getElementById('preview-file-name').innerText = data.publicId;
-
                 document.getElementById('hyper-input-zone').style.display = 'none';
                 document.getElementById('hyper-preview-zone').style.display = 'block';
-                
                 const fileIdLower = data.publicId.toLowerCase();
                 
                 if (fileIdLower.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
                     document.getElementById('view-img').src = downloadUrl;
                     document.getElementById('box-img').style.display = 'block';
-                } 
-                else if (fileIdLower.match(/\.(mp3|wav|ogg|m4a)$/)) {
+                } else if (fileIdLower.match(/\.(mp3|wav|ogg|m4a)$/)) {
                     document.getElementById('view-audio').src = downloadUrl;
                     document.getElementById('box-audio').style.display = 'block';
                     document.getElementById('view-audio').play().catch(() => {});
-                } 
-                else if (fileIdLower.match(/\.(txt|json|log|ini|gml)$/)) {
+                } else if (fileIdLower.match(/\.(txt|json|log|ini|gml)$/)) {
                     try {
                         const textRes = await fetch(downloadUrl);
                         const textContent = await textRes.text();
@@ -441,16 +423,11 @@
                         document.getElementById('box-text').style.display = 'block';
                     }
                 }
-
                 document.getElementById('hyper-download-btn').href = downloadUrl;
                 document.getElementById('btn-cancel-hyper').innerText = "Cerrar Panel";
-                
                 setTimeout(loadFiles, 2000);
             }
-        } catch (err) {
-            console.error("Fallo de conexión en el reclamo", err);
-            alert("Error de enlace estelar.");
-        }
+        } catch (err) { alert("Error de enlace estelar."); }
     }
 
     async function showQR(folder, id) {
@@ -459,7 +436,6 @@
         document.getElementById('qr-img-container').innerHTML = `<img src="${data.qr_url}" style="width:200px; height:200px;">`;
         document.getElementById('qr-modal').style.display = 'flex';
     }
-
     function closeQR() { document.getElementById('qr-modal').style.display = 'none'; }
 
     async function deleteFile(folder, id) {
@@ -473,22 +449,21 @@
         const formData = new FormData();
         formData.append('archivo', file);
         document.querySelector('.upload-card').style.opacity = "0.5";
-        
         const res = await fetch(`${API}/upload`, { method: 'POST', body: formData });
-        if (res.status === 503) {
-            alert("Subida bloqueada: El sistema está bajo mantenimiento privado.");
-        }
-        
         document.querySelector('.upload-card').style.opacity = "1";
         loadFiles();
     }
 
-    // Inicialización automática y loops de refresco (Radar va a 4 segundos de refresco)
+    // Loops automáticos de sincronización
     loadFiles();
-    actualizarRadarDispositivos();
-    
     setInterval(loadFiles, 25000);
-    setInterval(actualizarRadarDispositivos, 4000); 
+
+    // Bucle inteligente: Escanea la red local cada 3.5 segundos SOLO si el modal del radar está abierto
+    setInterval(() => {
+        if (document.getElementById('radar-modal').style.display === 'flex') {
+            actualizarRadarDispositivos();
+        }
+    }, 3500);
 </script>
 </body>
 </html>

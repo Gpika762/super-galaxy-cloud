@@ -270,7 +270,7 @@ app.get('/api/admin/control', (req, res) => {
 
 
 // =========================================================================
-//  🆕 MODULO DE RADAR WI-FI INTEGRADO CON AUTO-DETECCIÓN DE HARDWARE
+//  📡 MODULO DE RADAR WI-FI INTEGRADO (CORREGIDO PARA ADQUISICIÓN DE ARCHIVOS)
 // =========================================================================
 
 let clientesDisponibles = {}; // Mapeo dinámico de celulekes activos
@@ -326,17 +326,26 @@ app.get('/api/wifi/dispositivos', (req, res) => {
     res.json(lista);
 });
 
-// Envío exclusivo al dispositivo seleccionado mediante transferencia Wi-Fi
-app.post('/api/wifi/enviar', (req, res) => {
-    const { targetId, texto } = req.body;
-    if (!targetId || !texto) return res.status(400).json({ error: "Parámetros insuficientes para el envío" });
+// 🔥 NUEVO ENDPOINT ARREGLADO: Recibe el disparo del Radar Pro con el FileID e inyecta la data al celular objetivo
+app.post('/api/wifi/enviar-archivo', (req, res) => {
+    const { targetId, fileId } = req.body;
+    if (!targetId || !fileId) return res.status(400).json({ error: "Parámetros insuficientes para el envío de radar" });
 
     const targetCelular = clientesDisponibles[targetId];
-    if (!targetCelular) return res.status(404).json({ error: "El dispositivo ya no responde en el radar local." });
+    if (!targetCelular) return res.status(404).json({ error: "El celular objetivo ya no responde en el radar local." });
 
-    // Se empuja la ráfaga de datos al canal exclusivo de ese celular
-    targetCelular.res.write(`data: ${JSON.stringify({ tipo: "texto", texto: texto })}\n\n`);
-    res.json({ success: true, message: "Paquete inyectado. Esperando confirmación táctil..." });
+    const parts = fileId.split('/');
+    const folder = parts[0];
+    const id = parts[1];
+
+    // Construimos la ruta de descarga directa estructurada para que la use el celuleke receptor
+    const downloadRoute = `/api/download/${folder}/${id}`;
+
+    // Le inyectamos el evento al Server-Sent Events del celular para que reaccione al instante
+    targetCelular.res.write(`data: ${JSON.stringify({ tipo: "archivo", fileId, url: downloadRoute })}\n\n`);
+    
+    console.log(`🚀 [Radar Wi-Fi] Archivo ${fileId} inyectado con éxito al dispositivo ${targetId}`);
+    res.json({ success: true, message: "¡Ráfaga enviada! Comprueba la terminal del celular objetivo." });
 });
 
 // Ruta fija para cargar el receptor en el celular

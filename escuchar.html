@@ -3,56 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receptor Radar Wi-Fi</title>
+    <title>Receptor Radar Wi-Fi 📡</title>
     <style>
-        body { background: #050510; color: white; font-family: sans-serif; text-align: center; padding: 40px 20px; }
-        .radar-circle { width: 120px; height: 120px; border: 2px solid #0094ff; border-radius: 50%; margin: 30px auto; position: relative; animation: pulse 2s infinite ease-out; }
-        @keyframes pulse { 0% { transform: scale(0.9); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; box-shadow: 0 0 30px #0094ff; } }
-        .status { color: #00ff88; font-weight: bold; letter-spacing: 1px; }
+        body {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: sans-serif;
+            text-align: center;
+            padding: 30px 15px;
+        }
+        .status-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 20px;
+            display: inline-block;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .pulse {
+            width: 15px;
+            height: 15px;
+            background: #238636;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 1.5s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        .btn-dl {
+            display: inline-block;
+            margin-top: 20px;
+            background: #21262d;
+            color: #ecf2f8;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 6px;
+            border: 1px solid #f0f6fc1a;
+            font-weight: bold;
+        }
+        .btn-dl:hover { background: #30363d; }
     </style>
 </head>
 <body>
-    <h2>📡 MODO ESCUCHA GALAXY</h2>
-    <div class="radar-circle"></div>
-    <p class="status">SINTONIZANDO RED LOCAL...</p>
-    <p id="dev-info" style="color: #888; font-size: 12px;"></p>
+
+    <h2>📡 Receptor de Radar Galaxy Cloud</h2>
+    <p>Mantén esta pantalla abierta en tu celuleke para seguir en órbita local.</p>
+
+    <div class="status-card">
+        <p><strong>Identificación:</strong> <span id="modelo">Escaneando firma...</span></p>
+        <p><strong>Estado del Canal:</strong> <span id="estado">Conectando...</span> <span class="pulse" id="foco" style="background:#8b949e;"></span></p>
+    </div>
+
+    <div id="buzon" style="margin-top: 30px;"></div>
 
     <script>
-        const API = "/api";
-        // Generar un ID único aleatorio para este teléfono al entrar
-        const myId = "CEL-" + Math.floor(1000 + Math.random() * 9000);
-        
-        // Intentar deducir qué teléfono es usando el UserAgent (ej: Samsung, Xiaomi)
-        let modelo = "Dispositivo Móvil";
-        if (navigator.userAgent.includes("Android")) {
-            const match = navigator.userAgent.match(/Android\s([0-9\.]+);\s([^;)]+)/);
-            if(match) modelo = match[2];
-        }
+        const modeloTxt = document.getElementById('modelo');
+        const estadoTxt = document.getElementById('estado');
+        const foco = document.getElementById('foco');
+        const buzon = document.getElementById('buzon');
 
-        document.getElementById('dev-info').innerText = `ID: ${myId} | Modelo: ${modelo}`;
+        // Iniciamos el canal Server-Sent Events hacia el backend
+        const evtSource = new EventSource('/api/wifi/escuchar');
 
-        // Avisarle al backend que estamos vivos (Hacer ping cada 3 segundos)
-        async function reportarPresencia() {
-            try {
-                const res = await fetch(`${API}/wifi/registrar`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: myId, nombre: "Celuleke Familiar", modelo: modelo })
-                });
-                const data = await res.json();
-                
-                // Si el servidor nos envió un archivo disparado por el radar:
-                if (data.archivoPendiente) {
-                    alert("📥 ¡Inyección de archivo recibida por Radar!");
-                    window.location.href = data.urlDescarga; // Descarga automática directa
-                }
-            } catch (e) {
-                console.error("Fallo de enlace con la base del Radar", e);
+        evtSource.onopen = () => {
+            estadoTxt.innerText = "Sintonizado / En Línea";
+            foco.style.background = "#238636";
+        };
+
+        evtSource.onerror = () => {
+            estadoTxt.innerText = "Fuera de cobertura o reconectando...";
+            foco.style.background = "#da3633";
+        };
+
+        // Escuchamos los eventos del servidor
+        evtSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            // 1. Cuando el servidor nos identifica
+            if (data.tipo === 'identificacion') {
+                modeloTxt.innerText = data.modelo;
             }
-        }
 
-        setInterval(reportarPresencia, 3000);
-        reportarPresencia();
+            // 2. Cuando la PC nos dispara un archivo directo por ráfaga de Wi-Fi
+            if (data.tipo === 'archivo') {
+                buzon.innerHTML = `
+                    <div style="background:#1f6feb; color:white; padding:15px; border-radius:8px; animation: bounce 0.5s;">
+                        <h3>🚀 ¡Ráfaga de archivo recibida!</h3>
+                        <p>ID en la nube: <code>${data.fileId}</code></p>
+                        <a href="${data.url}" class="btn-dl" download>📥 Descargar Archivo Directo</a>
+                    </div>
+                `;
+                
+                // Opción automática por si el navegador bloquea los popups en motores viejos
+                // window.location.href = data.url;
+            }
+        };
     </script>
 </body>
 </html>

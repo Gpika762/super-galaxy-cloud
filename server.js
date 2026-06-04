@@ -83,8 +83,8 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
         else if (ua.includes("GT-I9505") || ua.includes("GT-I9500")) ultimoDispositivo = "Samsung Galaxy S4";
         else if (ua.includes("SM-G900")) ultimoDispositivo = "Samsung Galaxy S5";
         else if (ua.includes("SM-N900")) ultimoDispositivo = "Samsung Galaxy Note 3";
-        else if (ua.includes("SM-A366")) ultimoDispositivo = "Samsung Galaxy A36 5G"; // <-- NUEVO DETECTOR MODERN HARDWARE
-        else if (ua.includes("SM-A525") || ua.includes("SM-A526")) ultimoDispositivo = "Samsung Galaxy A52"; // <-- NUEVO DETECTOR MODERN HARDWARE
+        else if (ua.includes("SM-A366")) ultimoDispositivo = "Samsung Galaxy A36 5G"; 
+        else if (ua.includes("SM-A525") || ua.includes("SM-A526")) ultimoDispositivo = "Samsung Galaxy A52"; 
         else if (ua.includes("Windows")) ultimoDispositivo = "Notebook (PC)";
         else if (ua.includes("Android")) ultimoDispositivo = "Móvil Android";
         else ultimoDispositivo = "Dispositivo Familiar";
@@ -102,6 +102,9 @@ app.post('/api/upload', checkStatus, upload.single('archivo'), (req, res) => {
             name: req.file.originalname 
         });
     } catch (err) {
+        // 🔥 LOG PARA MONITOREAR QUÉ ROMPE LA SUBIDA DE MÚSICA EN RENDER
+        console.error("💥 Error crítico detectado en la subida:", err);
+
         if (req.query.redirect === 'true') {
             return res.send(`<h2>Error en la carga: ${err.message}</h2><a href="/retro">Volver a intentar</a>`);
         }
@@ -152,7 +155,6 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
         const { pin } = req.params;
         const transferencia = hyperTransfers[pin];
 
-        // Si el PIN no existe o ya expiró
         if (!transferencia || Date.now() > transferencia.expires) {
             if (req.query.source === 'pro') {
                 return res.status(400).json({ error: "El PIN no existe en el radar o ya caducó." });
@@ -171,10 +173,8 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
         const folder = parts[0];
         const id = parts[1];
 
-        // Borramos el PIN de inmediato para garantizar el uso único (Single-use)
         delete hyperTransfers[pin];
 
-        // Dejamos corriendo la tarea asíncrona de autodestrucción en Cloudinary (15 segundos)
         setTimeout(async () => {
             try {
                 let result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
@@ -186,13 +186,11 @@ app.get('/api/transfer/reclamar/:pin', checkStatus, async (req, res) => {
             }
         }, 15000);
 
-        // Si la petición viene desde la interfaz Pro moderna, respondemos con la data limpia en JSON
         if (req.query.source === 'pro') {
             console.log(`⚡ [Hyper Transfer] PIN verificado para interfaz Pro. Enviando JSON estructurado.`);
             return res.json({ success: true, folder, id, publicId });
         }
 
-        // Si no viene de la interfaz Pro, asumimos entorno Retro y hacemos la redirección clásica por URL
         console.log(`⚡ [Hyper Transfer] PIN verificado. Redirigiendo equipo retro a panel de descarga: ${folder}/${id}`);
         return res.redirect(`/retro?dl_folder=${encodeURIComponent(folder)}&dl_id=${encodeURIComponent(id)}`);
 
@@ -231,14 +229,28 @@ app.get('/api/preview/:folder/:id', checkStatus, (req, res) => {
     }
 });
 
-// DESCARGA FORZADA LIBRE
-app.get('/api/download/:folder/:id', checkStatus, (req, res) => {
+// 🔥 DESCARGA FORZADA MULTI-COMPATIBLE PARCHADA
+app.get('/api/download/:folder/:id', checkStatus, async (req, res) => {
     try {
         const publicId = `${req.params.folder}/${req.params.id}`;
-        const downloadUrl = cloudinary.url(publicId, { flags: "attachment", secure: true });
-        res.redirect(downloadUrl);
+        console.log(`📥 [Descarga] Generando enlaces multiplexados para: ${publicId}`);
+
+        // Cloudinary maneja la música bajo el resource_type 'video' o 'raw'. 
+        // Creamos variantes para romper las restricciones de extensión y tipo de recurso.
+        const urlVideo = cloudinary.url(publicId, { resource_type: 'video', flags: "attachment", secure: true });
+        const urlRaw = cloudinary.url(publicId, { resource_type: 'raw', flags: "attachment", secure: true });
+        const urlImage = cloudinary.url(publicId, { resource_type: 'image', flags: "attachment", secure: true });
+
+        let finalUrl = urlVideo; // Por defecto asumimos estructura de audio/video (.mp3)
+
+        if (req.query.type === 'raw') finalUrl = urlRaw;
+        else if (req.query.type === 'image') finalUrl = urlImage;
+
+        console.log(`🚀 [Descarga] Desviando tráfico al CDN: ${finalUrl}`);
+        res.redirect(finalUrl);
     } catch (err) {
-        res.status(500).send("Error al descargar");
+        console.error("💥 Error en el enrutador de descargas:", err);
+        res.status(500).send("Error interno al descargar");
     }
 });
 
@@ -272,19 +284,17 @@ app.get('/api/admin/control', (req, res) => {
 
 
 // =========================================================================
-//  📡 MODULO DE RADAR WI-FI INTEGRADO (CORREGIDO PARA ADQUISICIÓN DE ARCHIVOS)
+//  📡 MODULO DE RADAR WI-FI INTEGRADO
 // =========================================================================
 
-let clientesDisponibles = {}; // Mapeo dinámico de celulekes activos
+let clientesDisponibles = {}; 
 
-// Canal en tiempo real (SSE) para que el teléfono escuche las órdenes de la PC
 app.get('/api/wifi/escuchar', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // El radar lee la firma (User-Agent) del navegador del celular automáticamente
     const ua = req.headers['user-agent'] || "";
     let modeloDetectado = "Dispositivo Desconocido";
 
@@ -293,23 +303,19 @@ app.get('/api/wifi/escuchar', (req, res) => {
     else if (ua.includes("GT-I9505") || ua.includes("GT-I9500")) modeloDetectado = "Samsung Galaxy S4";
     else if (ua.includes("SM-G900")) modeloDetectado = "Samsung Galaxy S5";
     else if (ua.includes("SM-N900")) modeloDetectado = "Samsung Galaxy Note 3";
-    else if (ua.includes("SM-A366")) modeloDetectado = "Samsung Galaxy A36 5G"; // <-- NUEVA IDENTIFICACIÓN EN RADAR
-    else if (ua.includes("SM-A525") || ua.includes("SM-A526")) modeloDetectado = "Samsung Galaxy A52"; // <-- NUEVA IDENTIFICACIÓN EN RADAR
+    else if (ua.includes("SM-A366")) modeloDetectado = "Samsung Galaxy A36 5G"; 
+    else if (ua.includes("SM-A525") || ua.includes("SM-A526")) modeloDetectado = "Samsung Galaxy A52"; 
     else if (ua.includes("Windows")) modeloDetectado = "Notebook (PC)";
     else if (ua.includes("Android")) modeloDetectado = "Móvil Android";
     else modeloDetectado = "Dispositivo Familiar";
 
-    // Generamos un identificador único para la sesión actual del teléfono
     const idDispositivo = "dev_" + Math.floor(1000 + Math.random() * 9000);
     
-    // Lo montamos al radar activo
     clientesDisponibles[idDispositivo] = { nombre: modeloDetectado, res: res };
     console.log(`📡 [Radar Wi-Fi] Dispositivo detectado y sintonizado: ${modeloDetectado} (${idDispositivo})`);
 
-    // Le devolvemos el veredicto del escaneo al teléfono
     res.write(`data: ${JSON.stringify({ tipo: "identificacion", modelo: modeloDetectado })}\n\n`);
 
-    // Loop de mantenimiento de conexión activa (Evita caídas en navegadores viejos)
     const pingInterval = setInterval(() => {
         res.write(': ping\n\n');
     }, 15000);
@@ -321,7 +327,6 @@ app.get('/api/wifi/escuchar', (req, res) => {
     });
 });
 
-// Endpoint para que la PC escanee y vea la lista de celus en órbita
 app.get('/api/wifi/dispositivos', (req, res) => {
     const lista = Object.keys(clientesDisponibles).map(id => ({
         id: id,
@@ -330,7 +335,6 @@ app.get('/api/wifi/dispositivos', (req, res) => {
     res.json(lista);
 });
 
-// 🔥 NUEVO ENDPOINT ARREGLADO: Recibe el disparo del Radar Pro con el FileID e inyecta la data al celular objetivo
 app.post('/api/wifi/enviar-archivo', (req, res) => {
     const { targetId, fileId } = req.body;
     if (!targetId || !fileId) return res.status(400).json({ error: "Parámetros insuficientes para el envío de radar" });
@@ -342,17 +346,14 @@ app.post('/api/wifi/enviar-archivo', (req, res) => {
     const folder = parts[0];
     const id = parts[1];
 
-    // Construimos la ruta de descarga directa estructurada para que la use el celuleke receptor
     const downloadRoute = `/api/download/${folder}/${id}`;
 
-    // Le inyectamos el evento al Server-Sent Events del celular para que reaccione al instante
     targetCelular.res.write(`data: ${JSON.stringify({ tipo: "archivo", fileId, url: downloadRoute })}\n\n`);
     
     console.log(`🚀 [Radar Wi-Fi] Archivo ${fileId} inyectado con éxito al dispositivo ${targetId}`);
     res.json({ success: true, message: "¡Ráfaga enviada! Comprueba la terminal del celular objetivo." });
 });
 
-// Ruta fija para cargar el receptor en el celular
 app.get('/escuchar', (req, res) => {
     console.log(`📱 [Ruta Fija] Desplegando pantalla del receptor radar (escuchar.html)`);
     res.sendFile(path.join(__dirname, 'escuchar.html'));
@@ -360,34 +361,29 @@ app.get('/escuchar', (req, res) => {
 
 
 // =========================================================================
-// 8. ENRUTAMIENTO CONTROLADO POR RUTAS FIJAS (SISTEMA DETERMINISTA POR URL)
+// 8. ENRUTAMIENTO CONTROLADO POR RUTAS FIJAS
 // =========================================================================
 
-// Ruta específica para la interfaz Retro-Esencial
 app.get('/retro', (req, res) => {
     console.log(`📟 [Ruta Fija] Desplegando index-retro.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-retro.html'));
 });
 
-// Mantenemos la ruta por si acaso, aunque ahora redirigimos todo al archivo inteligente único /retro
 app.get('/retro-success', (req, res) => {
     console.log(`✅ [Ruta Fija] Desplegando index-retro-success.html.`);
     res.sendFile(path.join(__dirname, 'index-retro-success.html'));
 });
 
-// Ruta específica para la interfaz de Transición
 app.get('/transition', (req, res) => {
     console.log(`⚖️ [Ruta Fija] Desplegando index-transition.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-transition.html'));
 });
 
-// Ruta específica para la interfaz de No Compatible
 app.get('/unsupported', (req, res) => {
     console.log(`⚠️ [Ruta Fija] Desplegando index-unsupported.html de forma directa.`);
     res.sendFile(path.join(__dirname, 'index-unsupported.html'));
 });
 
-// Comodín final (*): Si no es la API ni una ruta fija, sirve la versión Pro (index.html)
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: "Endpoint no encontrado en el radar" });
@@ -396,6 +392,5 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- INICIO DEL PUERTO DE LANZAMIENTO ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Nube Libre Activa en Puerto ${PORT}`));
